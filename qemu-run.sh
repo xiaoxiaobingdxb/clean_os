@@ -1,0 +1,1 @@
+qemu-system-i386 -drive file=./build/boot.bin,media=disk,format=raw

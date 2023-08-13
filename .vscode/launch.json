@@ -1,0 +1,46 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) 启动",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/build/boot/boot.elf",
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerServerAddress": "127.0.0.1:1234",
+            "targetArchitecture": "x86",
+            "stopAtConnect": true,
+            "miDebuggerPath": "x86_64-elf-gdb",
+            "linux": {
+                "miDebuggerPath": "gdb",
+            },
+            "customLaunchSetupCommands": [],
+            "setupCommands": [
+                {
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                },
+            ],
+            "postRemoteConnectCommands": [
+                {
+                    "text": "-file-symbol-file ./build/boot/boot.elf",
+                    "ignoreFailures": false
+                },
+                {
+                    "text": "-exec-until *0x7c00",
+                    "ignoreFailures": false
+                }
+            ]
+        },
+    ],
+}
