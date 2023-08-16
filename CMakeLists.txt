@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.5.0)
 
 set(CMAKE_VERBOSE_MAKEFILE on)
 
 if (CMAKE_HOST_APPLE)
+    set(CMAKE_SYSTEM_NAME macOS)
     set(TOOL_PREFIX "x86_64-elf-")
 elseif (CMAKE_HOST_WIN32)
     set(TOOL_PREFIX "x86_64-linux-gnu-")
