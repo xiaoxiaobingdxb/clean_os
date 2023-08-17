@@ -1,7 +1,7 @@
 .code16
 .text
     .global _start
-
+    .extern boot_entry
 _start:
     mov $0, %ax
     mov %ax, %ds
@@ -11,6 +11,9 @@ _start:
     mov %ax, %gs
 
     mov $_start, %esp
+
+    call clean_scene
+    call reset_cursor
 
     mov $'c', %al
     call print_char
@@ -25,29 +28,19 @@ _start:
 
     mov $msgstr, %bp
     mov len, %cx
+    mov $0x0100, %dx
     call print_str
+    
+    call read_disk
+    jmp boot_entry
 
     jmp .
 
-print_char: # char into al
-    pusha
-    mov $0x0e, %ah
-    int $0x10
-    popa
-    ret
-
-print_str: # str address into bp, str len into cx
-    pusha
-    mov $0x00, %al
-    mov $0x13, %ah
-    mov $0x01, %bx
-    mov $0x0508, %dx
-    int $0x10
-    popa
-    ret
-
-msgstr: .asciz "Hello World!"
+msgstr: .string "Hello World!"
 len: .int . - msgstr
+
+#include "print.S"
+#include "disk.S"
 
 .section boot_end, "ax"
 .byte 0x55, 0xaa

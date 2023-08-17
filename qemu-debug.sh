@@ -1,1 +1,1 @@
-qemu-system-i386 -S -s -drive file=./build/boot.bin,media=disk,format=raw
+qemu-system-i386 -S -s -drive file=./build/clean_os.dmg,media=disk,format=raw

@@ -22,8 +22,11 @@ set(LINKER_TOOL "${TOOL_PREFIX}ld")
 
 # other build tools
 set(OBJCOPY_TOOL "${TOOL_PREFIX}objcopy")
+set(OBJDUMP_TOOL "${TOOL_PREFIX}objdump")
+set(READELF_TOOL "${TOOL_PREFIX}readelf")
 
 project(clean_os LANGUAGES C)
 enable_language(ASM)
 
-add_subdirectory(./boot)
+add_subdirectory(boot)
+add_subdirectory(loader)
