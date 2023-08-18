@@ -33,13 +33,15 @@ _start:
     
     call read_disk
     jmp boot_entry
+    ; mov $0x8000, %ax
+    ; jmp %ax
 
     jmp .
 
 msgstr: .string "Hello World!"
 len: .int . - msgstr
 
-#include "print.S"
+#include "../common/bios_print.S"
 #include "disk.S"
 
 .section boot_end, "ax"

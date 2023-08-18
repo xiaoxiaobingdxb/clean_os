@@ -12,4 +12,4 @@ clean_os是一个自制计算机操作系统，寓意是简单整洁，只包括
    
    3. [项目搭建](./doc/boot/project_struct.md)
    
-   4. 
+   4. [从boot到loader](./doc/boot/read_loader.md)
