@@ -5,7 +5,6 @@ fi
 cd build
 cmake ../
 make
-
 os_img=clean_os.dmg
 # create os img if not exist
 if [ ! -d "$os_img" ];then

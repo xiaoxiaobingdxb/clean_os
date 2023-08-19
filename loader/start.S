@@ -2,10 +2,18 @@
 .text
     .global _start
 _start:
-    mov $msgstr, %bp
-    mov len, %cx
-    mov $0x0200, %dx
+    mov $0, %ax
+    mov %ax, %ds
+    mov %ax, %ss
+    mov %ax, %es
+    mov %ax, %fs
+    mov %ax, %gs
+
+    mov $_start, %esp
+    push len
+    push $msgstr
     call print_str
+    add $0x04, %sp
     jmp .
 
 msgstr: .string "loader..."
