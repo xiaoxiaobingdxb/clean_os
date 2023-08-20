@@ -103,23 +103,42 @@ read_cursor:
     pop %ax
     ret
 
-
-print_str:
+print_str_position:
     push %ax
     push %bx
     push %cx
+    push %dx
     push %bp
     mov %sp, %bp
-    sub $0x02, %sp
-    call read_cursor
-    pop %dx // position
-    mov 0x0c(%bp), %cx
-    mov 0x0a(%bp),%bp
+    mov 0x0e(%bp), %cx // str len
+    mov 0x10(%bp), %dx // position in scene
+    mov 0x0c(%bp),%bp // str addr
     mov $0x1301, %ax
     mov $0007, %bx
     int $0x10
     pop %bp
+    pop %dx
     pop %cx
     pop %bx
     pop %ax
+    ret
+
+
+print_str:
+    push %dx
+    push %bp
+    mov %sp, %bp
+    sub $0x02, %sp
+    call read_cursor
+    pop %dx
+    mov 0x08(%bp), %cx
+    mov 0x06(%bp), %bp
+    push %dx
+    push %cx
+    push %bp
+    // the position in the top of stack
+    call print_str_position
+    add $0x06, %sp
+    pop %bp
+    pop %dx
     ret
