@@ -27,6 +27,4 @@ void loader_entry() {
     write_cr0(cr0 | 1);
     // 5. jmp far to clean pipeline
     jmp_far(8, (uint32_t)protect_mode_entry);
-
-
 }
