@@ -1,10 +1,11 @@
 project(loader LANGUAGES C)
 
 # linker
-set(CMAKE_EXE_LINKER_FLAGS "-m elf_i386 -Ttext=0x8000")
+set(LIBS_FLAGS "-L ${CMAKE_BINARY_DIR}/common/ -lcommon")
+set(CMAKE_EXE_LINKER_FLAGS "-m elf_i386 -Ttext=0x8000 ${LIBS_FLAGS}")
 set(CMAKE_C_LINK_EXECUTABLE "${LINKER_TOOL} <OBJECTS> ${CMAKE_EXE_LINKER_FLAGS} -o ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.elf")
 
-file(GLOB C_LIST "*.c" "*.h")
+file(GLOB_RECURSE C_LIST "*.c" "*.h")
 add_executable(${PROJECT_NAME} start.S ${C_LIST})
 
 add_custom_command(TARGET ${PROJECT_NAME}

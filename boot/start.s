@@ -1,7 +1,6 @@
 .code16
 .text
     .global _start
-    .extern boot_entry
 _start:
     mov $0, %ax
     mov %ax, %ds

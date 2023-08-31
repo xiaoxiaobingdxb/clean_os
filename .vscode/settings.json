@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "bios_print.h": "c",
+        "test.h": "c",
+        "ttest.h": "c",
+        "loader.h": "c",
+        "contrl.h": "c",
+        "basic.h": "c"
+    }
+}

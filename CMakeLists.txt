@@ -28,5 +28,13 @@ set(READELF_TOOL "${TOOL_PREFIX}readelf")
 project(clean_os LANGUAGES C)
 enable_language(ASM)
 
+# search h file
+include_directories(
+    ${PROJECT_SOURCE_DIR}
+)
+
+add_subdirectory(common)
 add_subdirectory(boot)
 add_subdirectory(loader)
+
+add_dependencies(loader common)
