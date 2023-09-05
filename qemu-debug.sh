@@ -1,1 +1,1 @@
-qemu-system-i386 -S -s -drive file=./build/clean_os.dmg,media=disk,format=raw
+qemu-system-i386 -S -s -drive file=./build/clean_os.dmg,media=disk,format=raw -d pcall,page,mmu,cpu_reset,guest_errors,page,trace:ps2_put_keycode

@@ -5,6 +5,7 @@ __asm__(".code16gcc");
 #include "common/cpu/gdt.h"
 
 #include "loader.h"
+#include "common/boot/boot.h"
 
 uint16_t gdt_table[][4] = {
     {0, 0, 0, 0},
@@ -12,7 +13,27 @@ uint16_t gdt_table[][4] = {
     {0xFFFF, 0x0000, 0x9200, 0x00CF},
 };
 
-void loader_entry() {
+void loader_entry()
+{
+    // test for intcall
+    struct biosregs ir, or ;
+    struct biosregs *ireg = &ir, *oreg = &or;
+    initregs(ireg);
+    initregs(oreg);
+    ireg->ah = 0x3;
+    uint8_t intNo = 0x10;
+    initregs(ireg);
+    initregs(oreg);
+    ireg->ah = 0x0e;
+    ireg->al = 'L';
+    intcall(0x10, ireg, oreg);
+
+    initregs(ireg);
+    initregs(oreg);
+    ireg->ah = 0x03;
+    intcall(0x10, ireg, oreg);
+    
+
     print_str("from 16bit into 32bit");
     print_nl();
     // 1. close interrupt

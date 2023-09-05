@@ -5,6 +5,9 @@
         "ttest.h": "c",
         "loader.h": "c",
         "contrl.h": "c",
-        "basic.h": "c"
+        "basic.h": "c",
+        "boot.h": "c",
+        "register.h": "c",
+        "string.h": "c"
     }
 }
