@@ -1,6 +1,8 @@
 #ifndef BOOT_BOOT_H
 #define BOOT_BOOT_H
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+
 #include "../types/basic.h"
 struct biosregs {
 	union {
@@ -45,7 +47,7 @@ struct biosregs {
 #define X86_EFLAGS_CF 1
 #include "string.h"
 #include "../cpu/register.h"
-void initregs(struct biosregs *reg) {
+static inline void initregs(struct biosregs *reg) {
     memset(reg, 0, sizeof(*reg));
     reg->eflags |= X86_EFLAGS_CF;
 	reg->ds = ds();

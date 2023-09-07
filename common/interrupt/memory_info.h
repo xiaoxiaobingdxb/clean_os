@@ -1,24 +1,34 @@
-/** the best function to find memory info
- *the largest memory address is 2^64
- * @see osdev https://wiki.osdev.org/Detecting_Memory_(x86)#BIOS_Function:_INT_0x15.2C_EAX_.3D_0xE820
- */
-static inline void detec_memory_15_e820()
-{
-}
+#ifndef INT_MEM_INFO_H
+#define INT_MEM_INFO_H
+#include "../types/basic.h"
 
-/**
- * return 2 block
- * first is memory info 0~15MB
- * second is memory info 16MB~4GB
- * @see https://wiki.osdev.org/Detecting_Memory_(x86)#BIOS_Function:_INT_0x15.2C_AX_.3D_0xE801
- */
-static inline void detec_memory_15_e801()
-{
-}
+#define KB(x) (1024 * x)
+#define MB(x) (1024 * KB(x))
+#define GB(x) (1024 * MB(x))
 
-/**
- * only find memory info 1MB~63MB
- */
-static inline void detec_memory_15_88()
+struct boot_e820_entry
 {
-}
+    uint32_t low_addr;
+    uint32_t high_addr;
+    uint32_t low_size;
+    uint32_t high_size;
+    uint32_t type;
+};
+struct boot_params
+{
+    // 15_e820
+    struct boot_e820_entry e820_table[128];
+    int e820_entry_count;
+
+    // 15_e801
+    uint32_t e801_k;
+
+    // 15_88
+    uint16_t ext_88_k;
+
+};
+extern struct boot_params boot_params;
+
+void detect_memory(void);
+
+#endif

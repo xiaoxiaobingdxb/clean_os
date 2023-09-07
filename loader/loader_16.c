@@ -6,6 +6,8 @@ __asm__(".code16gcc");
 
 #include "loader.h"
 #include "common/boot/boot.h"
+// #include "common/interrupt/memory_info.h"
+#include "common/interrupt/memory_info.h"
 
 uint16_t gdt_table[][4] = {
     {0, 0, 0, 0},
@@ -13,9 +15,10 @@ uint16_t gdt_table[][4] = {
     {0xFFFF, 0x0000, 0x9200, 0x00CF},
 };
 
-void loader_entry()
+void test_intcall()
 {
     // test for intcall
+    /*
     struct biosregs ir, or ;
     struct biosregs *ireg = &ir, *oreg = &or;
     initregs(ireg);
@@ -32,8 +35,14 @@ void loader_entry()
     initregs(oreg);
     ireg->ah = 0x03;
     intcall(0x10, ireg, oreg);
-    
-
+    */
+}
+struct boot_params boot_params;
+void loader_entry()
+{
+    // test_intcall();
+    detect_memory();
+    struct boot_params *p = &boot_params;
     print_str("from 16bit into 32bit");
     print_nl();
     // 1. close interrupt
