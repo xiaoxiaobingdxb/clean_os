@@ -36,5 +36,9 @@ include_directories(
 add_subdirectory(common)
 add_subdirectory(boot)
 add_subdirectory(loader)
+add_subdirectory(kernel)
 
+add_dependencies(boot common)
 add_dependencies(loader common)
+add_dependencies(kernel common)
+

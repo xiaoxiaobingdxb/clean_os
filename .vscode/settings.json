@@ -8,6 +8,8 @@
         "basic.h": "c",
         "boot.h": "c",
         "register.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "memory_info.h": "c",
+        "disk.h": "c"
     }
 }

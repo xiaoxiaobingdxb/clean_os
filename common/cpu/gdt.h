@@ -1,6 +1,8 @@
+#ifndef CPU_GDT_H
+#define CPU_GDT_H
 #include "../types/basic.h"
 
-void lgdt(uint32_t start, uint32_t size) {
+static inline void lgdt(uint32_t start, uint32_t size) {
     struct {
         uint16_t limit;
         uint16_t start15_0;
@@ -12,3 +14,7 @@ void lgdt(uint32_t start, uint32_t size) {
     gdt.limit = size - 1;
     __asm__ __volatile__("lgdt %[g]"::[g]"m"(gdt));
 }
+
+void enable_page_mode (void);
+
+#endif
