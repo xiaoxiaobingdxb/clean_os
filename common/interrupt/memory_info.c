@@ -78,6 +78,7 @@ static void detect_memory_15_e801()
 
 /**
  * only find memory info 1MB~63MB
+ * @see https://wiki.osdev.org/Detecting_Memory_(x86)#BIOS_Function:_INT_0x15.2C_AH_.3D_0x88
  */
 static void detect_memory_15_88()
 {
