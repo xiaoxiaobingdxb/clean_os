@@ -16,4 +16,8 @@ clean_os是一个自制计算机操作系统，寓意是简单整洁，只包括
    
    5. [使用栈在汇编中封装函数调用](./doc/boot/invoke_func.md)
    
-   6. [获取内存信息](./doc/loader/memory_detect.md)
+   6. [从实模式到保护模式](./doc/loader/protected_mode.md)
+   
+   7. [获取内存信息](./doc/loader/memory_detect.md)
+   
+   8. [内存分页](./doc/kernel/memory_paging.md)

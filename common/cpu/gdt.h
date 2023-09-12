@@ -16,5 +16,6 @@ static inline void lgdt(uint32_t start, uint32_t size) {
 }
 
 void enable_page_mode (void);
+void set_page();
 
 #endif
