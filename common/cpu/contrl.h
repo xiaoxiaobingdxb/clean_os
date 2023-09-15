@@ -63,4 +63,12 @@ static inline void jmp_far(uint32_t selector, uint32_t offset) {
     __asm__ __volatile__("ljmpl *(%[a])"::[a]"r"(addr));
 }
 
+static inline void hlt() {
+    __asm__ __volatile__("hlt");
+}
+
+static inline void die(int code) {
+    for (;;);
+}
+
 #endif

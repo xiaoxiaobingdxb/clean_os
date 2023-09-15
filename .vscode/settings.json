@@ -10,6 +10,15 @@
         "register.h": "c",
         "string.h": "c",
         "memory_info.h": "c",
-        "disk.h": "c"
+        "disk.h": "c",
+        "mmu.h": "c",
+        "type_traits": "c",
+        "limits": "c",
+        "__nullptr": "c",
+        "cstddef": "c",
+        "strings.h": "c",
+        "lib.h": "c",
+        "__config": "c",
+        "gdt.h": "c"
     }
 }

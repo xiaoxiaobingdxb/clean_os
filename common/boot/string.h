@@ -1,5 +1,6 @@
 #ifndef BOOT_STRING_H
 #define BOOT_STRING_H
+#include "../types/basic.h"
 static inline void *memset(void *dst, int c, size_t len)
 {
     const unsigned char uc = c;
@@ -10,4 +11,6 @@ static inline void *memset(void *dst, int c, size_t len)
     }
     return dst;
 }
+
+#define NULL ((void *)0)
 #endif
