@@ -3,7 +3,7 @@
 #include "common/cpu/mem_page.h"
 #include "common/tool/lib.h"
 
-void test_invlpg() {
+void test_remap() {
     pde_t *page_dir = (pde_t *)read_cr3();
     ASSERT(page_dir != (pde_t *)0);
     pte_t *pte = find_pte(page_dir, 0x80001000, 0);
@@ -13,11 +13,25 @@ void test_invlpg() {
     ASSERT(err == 0);
     pte = find_pte(page_dir, 0x80000000, 0);
     pte->v = phy_addr | (1 << 0) | (1 << 1) | (1 << 2);
-
+}
+void test_invlpg() {
+    test_remap();
     uint32_t *p = (uint32_t *)0x80000000;
     uint32_t value = *p;
 
     __asm__ __volatile__("invlpg (%[v])" ::[v] "r"(0x80000000));
+    value = *p;
+}
+
+void test_reload_paing() {
+    test_remap();
+
+    uint32_t *p = (uint32_t *)0x80000000;
+    uint32_t value = *p;
+
+    pde_t *page_dir = (pde_t *)read_cr3();
+    ASSERT(page_dir != (pde_t *)0);
+    write_cr3((uint32_t)page_dir);
     value = *p;
 }
 
@@ -39,7 +53,8 @@ void test_paging() {
 }
 void main() {
     test_paging();
-    test_invlpg();
+    // test_invlpg();
+    test_reload_paing();
     for (;;) {
     }
 }
