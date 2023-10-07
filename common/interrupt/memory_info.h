@@ -1,10 +1,10 @@
 #ifndef INT_MEM_INFO_H
 #define INT_MEM_INFO_H
 #include "../types/basic.h"
+#include "common/types/byte.h"
 
-#define KB(x) (1024 * x)
-#define MB(x) (1024 * KB(x))
-#define GB(x) (1024 * MB(x))
+#define E820_MEM_TYPE_USABLE 1
+#define E820_MEM_TYPE_RESERVED 2
 
 struct boot_e820_entry
 {

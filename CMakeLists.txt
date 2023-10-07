@@ -12,6 +12,7 @@ endif ()
 # c compiler gcc
 set(CMAKE_C_COMPILER "${TOOL_PREFIX}gcc")
 set(CMAKE_C_FLAGS "-g -c -O0 -m32 -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-builtin")
 
 # assembly compiler gcc
 set(CMAKE_ASM_COMPILER "${TOOL_PREFIX}gcc")
@@ -41,4 +42,3 @@ add_subdirectory(kernel)
 add_dependencies(boot common)
 add_dependencies(loader common)
 add_dependencies(kernel common)
-

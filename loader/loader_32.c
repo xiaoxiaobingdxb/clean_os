@@ -5,6 +5,7 @@
 #include "common/io/disk.h"
 #include "common/types/basic.h"
 #include "loader.h"
+#include "common/cpu/mem_page.h"
 
 #define SYS_KERNEL_LOAD_ADDR MB(1)
 void load_kernel() {

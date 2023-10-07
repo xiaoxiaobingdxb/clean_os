@@ -10,7 +10,7 @@
 // pde or pte value high 10 bit convert into physical address
 #define pe_phy_addr(phy_page_value) (phy_page_value << 12)
 // get offset in page from vaddr, add it on page_base is phy_addr
-#define phy_addr(page_base, vaddr) (page_base + (0xfff & vaddr))
+#define phy_addr(page_base, vaddr) (page_base + (0x3ff & vaddr))
 
 #pragma pack(1)  // aligned 1 bit
 typedef union _pde_t {

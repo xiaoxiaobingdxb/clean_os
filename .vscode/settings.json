@@ -1,24 +1,14 @@
 {
     "files.associations": {
-        "bios_print.h": "c",
-        "test.h": "c",
-        "ttest.h": "c",
-        "loader.h": "c",
-        "contrl.h": "c",
-        "basic.h": "c",
-        "boot.h": "c",
-        "register.h": "c",
         "string.h": "c",
-        "memory_info.h": "c",
-        "disk.h": "c",
+        "mem_page.h": "c",
         "mmu.h": "c",
-        "type_traits": "c",
-        "limits": "c",
-        "__nullptr": "c",
-        "cstddef": "c",
-        "strings.h": "c",
+        "bitmap.h": "c",
+        "gdt.h": "c",
+        "basic.h": "c",
         "lib.h": "c",
-        "__config": "c",
-        "gdt.h": "c"
+        "byte.h": "c",
+        "mem.h": "c",
+        "math.h": "c"
     }
 }

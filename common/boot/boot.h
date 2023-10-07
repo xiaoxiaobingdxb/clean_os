@@ -45,7 +45,7 @@ struct biosregs {
 	};
 };
 #define X86_EFLAGS_CF 1
-#include "string.h"
+#include "common/lib/string.h"
 #include "../cpu/register.h"
 static inline void initregs(struct biosregs *reg) {
     memset(reg, 0, sizeof(*reg));

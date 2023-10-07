@@ -1,8 +1,8 @@
 #include "mem_page.h"
 
-#include "../boot/string.h"
 #include "../interrupt/memory_info.h"
 #include "../tool/lib.h"
+#include "common/lib/string.h"
 #include "contrl.h"
 #include "gdt.h"
 #include "mmu.h"
@@ -18,27 +18,31 @@
 #define PTE_W (1 << 1)
 #define PTE_U (1 << 2)
 
+// 使用4MB页块，这样构造页表就简单很多，只需要1个表即可。
+// 以下表为临时使用，用于帮助内核正常运行，在内核运行起来之后，将重新设置
+static uint32_t old_page_dir[1024] __attribute__((aligned(KB(4)))) = {
+    [0] = PDE_P | PDE_PS | PDE_W,  // PDE_PS，开启4MB的页
+};
 void enable_page_mode(void) {
-    // 使用4MB页块，这样构造页表就简单很多，只需要1个表即可。
-    // 以下表为临时使用，用于帮助内核正常运行，在内核运行起来之后，将重新设置
-    static uint32_t page_dir[1024] __attribute__((aligned(KB(4)))) = {
-        [0] = PDE_P | PDE_PS | PDE_W,  // PDE_PS，开启4MB的页
-    };
     // 设置PSE，以便启用4M的页，而不是4KB
     uint32_t cr4 = read_cr4();
     write_cr4(cr4 | CR4_PSE);
 
     // 设置页表地址
-    write_cr3((uint32_t)page_dir);
+    write_cr3((uint32_t)old_page_dir);
 
     // 开启分页机制
     write_cr0(read_cr0() | CR0_PG);
 }
 
+void set_page_dir(uint32_t page_dir) { write_cr3(page_dir); }
+
+uint32_t read_page_dir() { return read_cr3(); }
+
 uint8_t map_pyh_buff[KB(4)] __attribute__((aligned(KB(4)))) = {0x36};
 
 void set_page() {
-#define MAP_ADDR 0x80000000
+#define MAP_ADDR 0x40000000
 
     static uint32_t page_dir2[KB(1)] __attribute__((aligned(KB(4)))) = {0};
 
@@ -53,7 +57,7 @@ void set_page() {
 uint32_t page_position = MB(4);
 // alloc some page from physical memory
 // return physical memeory address
-uint32_t alloc_phy_mem(int page_count) {
+uint32_t mock_alloc_phy_mem(int page_count) {
     page_position += MEM_PAGE_SIZE;
     return page_position;
 }
@@ -68,7 +72,7 @@ pte_t *find_pte(pde_t *page_dir, uint32_t vaddr, int alloc) {
             return (pte_t *)0;
         }
         // alloc a page from physical memeory
-        uint32_t phy_addr = alloc_phy_mem(1);
+        uint32_t phy_addr = mock_alloc_phy_mem(1);
         if (phy_addr == 0) {
             return (pte_t *)0;
         }
@@ -107,7 +111,7 @@ int get_phy_addr(uint32_t vaddr, uint32_t *paddr, int alloc) {
         if (!alloc) {
             return -1;
         }
-        uint32_t phy_addr = alloc_phy_mem(1);
+        uint32_t phy_addr = mock_alloc_phy_mem(1);
         if (phy_addr == 0) {
             return -1;
         }
@@ -121,7 +125,7 @@ int get_phy_addr(uint32_t vaddr, uint32_t *paddr, int alloc) {
 
 int set_byte(uint32_t vaddr, uint8_t value, int alloc) {
     int err = get_phy_addr(vaddr, NULL, alloc);
-    if (err != 0) {
+    if (err) {
         return err;
     }
     *((uint8_t *)vaddr) = value;
