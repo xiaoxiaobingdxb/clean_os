@@ -56,41 +56,54 @@ void test_paging() {
 
 void test_uv_page_dir() {
     uint32_t old_page_dir = current_page_dir();
-    uint32_t vaddr = GB(1);
-    alloc_vm_for_page_dir(old_page_dir, vaddr, 4, PTE_W | PTE_U);
-    set_page_dir(old_page_dir);
-    uint32_t *num_p = (uint32_t *)vaddr;
+    uint32_t user_vaddr = GB(1);
+    uint32_t kernel_vaddr = GB(1) - KB(4);
+    alloc_vm_for_page_dir(old_page_dir, user_vaddr, 4, PTE_W | PTE_U);
+    alloc_vm_for_page_dir(old_page_dir, kernel_vaddr, 4, PTE_W | PTE_U);
+    uint32_t *num_p = (uint32_t *)user_vaddr;
     (*num_p) = 0x1;
     uint32_t num = *num_p;
     ASSERT(num == 0x1);
+    uint32_t *kernel_num_p = (uint32_t *)kernel_vaddr;
+    (*kernel_num_p) = 0x2;
+    num = *kernel_num_p;
+    ASSERT(num = 0x2);
 
     uint32_t page_dir1 = create_uvm();
     uint32_t page_dir2 = create_uvm();
     set_page_dir(page_dir1);
-    alloc_vm_for_page_dir(page_dir1, vaddr, 4, PTE_W | PTE_U);
-    set_page_dir(page_dir1);
-    (*num_p) = 0x2;
-    num = *num_p;
-    ASSERT(num == 0x2);
-
-    set_page_dir(page_dir2);
-    alloc_vm_for_page_dir(page_dir2, vaddr, 4, PTE_W | PTE_U);
-    set_page_dir(page_dir2);
+    alloc_vm_for_page_dir(page_dir1, user_vaddr, 4, PTE_W | PTE_U);
     (*num_p) = 0x3;
     num = *num_p;
     ASSERT(num == 0x3);
+    (*kernel_num_p) = 0x4;
+    num = *kernel_num_p;
+    ASSERT(num == 0x4);
+
+    set_page_dir(page_dir2);
+    alloc_vm_for_page_dir(page_dir2, user_vaddr, 4, PTE_W | PTE_U);
+    (*num_p) = 0x5;
+    num = *num_p;
+    ASSERT(num == 0x5);
+    (*kernel_num_p) = 0x6;
+    num = *kernel_num_p;
+    ASSERT(num == 0x6);
 
     set_page_dir(page_dir1);
     num = *num_p;
-    ASSERT(num == 0x2);
+    ASSERT(num == 0x3);
+    num = *kernel_num_p;
+    ASSERT(num == 0x6);
 
     set_page_dir(old_page_dir);
     num = *num_p;
     ASSERT(num == 0x1);
+    num = *kernel_num_p;
+    ASSERT(num == 0x6);
 
     destroy_uvm(page_dir1);
     destroy_uvm(page_dir2);
-    free_vm_for_page_dir(old_page_dir, vaddr, 4);
+    free_vm_for_page_dir(old_page_dir, user_vaddr, 4);
 }
 
 static struct boot_params *bparams;
