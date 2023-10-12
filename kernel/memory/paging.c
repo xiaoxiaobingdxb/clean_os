@@ -7,9 +7,6 @@
 #include "config.h"
 #include "mem.h"
 
-#define PDE_CNT 1024
-#define PTE_CNT 1024
-
 #define PDE_P (1 << 0)
 #define PDE_PS (1 << 7)
 #define PDE_W (1 << 1)
@@ -17,23 +14,34 @@
 #define CR4_PSE (1 << 4)
 #define CR0_PG (1 << 31)
 
-typedef struct {
+struct addr_alloc_t_ {
     uint32_t start;
     uint32_t page_size;
     bitmap_t bitmap;
-} phy_addr_alloc_t;
+};
+typedef struct addr_alloc_t_ phy_addr_alloc_t;
+typedef struct addr_alloc_t_ vir_addr_alloc_t;
 
 static phy_addr_alloc_t kernel_phy_addr_alloc;
+static vir_addr_alloc_t kernel_vir_addr_alloc;
 static phy_addr_alloc_t user_phy_addr_alloc;
 
-void init_phy_addr_alloc(phy_addr_alloc_t *phy_addr_alloc, uint8_t *bits,
-                         uint32_t start, uint32_t size, uint32_t page_size) {
-    phy_addr_alloc->bitmap.bits = bits;
+void init_addr_alloc(struct addr_alloc_t_ *addr_alloc, uint8_t *bits,
+                     uint32_t start, uint32_t size, uint32_t page_size) {
+    addr_alloc->bitmap.bits = bits;
     uint32_t bit_size = size / page_size;
-    phy_addr_alloc->bitmap.bytes_len = (bit_size + 7) / 8;
-    bitmap_init(&phy_addr_alloc->bitmap);
-    phy_addr_alloc->start = start;
-    phy_addr_alloc->page_size = page_size;
+    addr_alloc->bitmap.bytes_len = (bit_size + 7) / 8;
+    bitmap_init(&addr_alloc->bitmap);
+    addr_alloc->start = start;
+    addr_alloc->page_size = page_size;
+}
+
+void alloc_mem_use(struct addr_alloc_t_ *addr_alloc, uint32_t addr,
+                   int page_count, uint8_t use) {
+    int bit_idx = (addr - addr_alloc->start) / addr_alloc->page_size;
+    for (int i = 0; i < page_count; i++) {
+        bitmap_set(&addr_alloc->bitmap, bit_idx + i, use);
+    }
 }
 
 uint32_t alloc_phy_mem(phy_addr_alloc_t *phy_addr_alloc, int page_count) {
@@ -41,10 +49,42 @@ uint32_t alloc_phy_mem(phy_addr_alloc_t *phy_addr_alloc, int page_count) {
     if (bit_idx < 0) {
         return -1;
     }
-    for (int i = 0; i < page_count; i++) {
-        bitmap_set(&phy_addr_alloc->bitmap, bit_idx + i, 1);
+    uint32_t addr = phy_addr_alloc->start + bit_idx * phy_addr_alloc->page_size;
+    alloc_mem_use(phy_addr_alloc, addr, page_count, 1);
+    return addr;
+}
+
+uint32_t alloc_vir_mem(vir_addr_alloc_t *vir_addr_alloc, int page_count) {
+    int bit_idx = bitmap_scan(&vir_addr_alloc->bitmap, page_count);
+    if (bit_idx < 0) {
+        return -1;
     }
-    return phy_addr_alloc->start + bit_idx * phy_addr_alloc->page_size;
+    uint32_t addr = vir_addr_alloc->start + bit_idx * vir_addr_alloc->page_size;
+    alloc_mem_use(vir_addr_alloc, addr, page_count, 1);
+    return addr;
+}
+
+void alloc_mem(phy_addr_alloc_t *phy_addr_alloc,
+               vir_addr_alloc_t *vir_addr_alloc, int page_count,
+               uint32_t addrs[2]) {
+    if (phy_addr_alloc == &kernel_phy_addr_alloc) {
+        uint32_t addr = alloc_phy_mem(phy_addr_alloc, page_count);
+        alloc_mem_use(&kernel_vir_addr_alloc, addr, page_count, 1);
+        addrs[0] = addrs[1] = addr;
+    } else {
+        addrs[0] = alloc_phy_mem(phy_addr_alloc, page_count);
+        addrs[1] = alloc_vir_mem(vir_addr_alloc, page_count);
+    }
+}
+
+uint32_t alloc_kernel_mem(int page_count) {
+    uint32_t addrs[2];
+    alloc_mem(&kernel_phy_addr_alloc, &kernel_vir_addr_alloc, page_count,
+              addrs);
+    if (addrs[0] < 0 || addrs[1] < 0) {
+        return -1;
+    }
+    return addrs[0];
 }
 
 phy_addr_alloc_t *get_phy_addr_alloc(uint32_t paddr) {
@@ -60,12 +100,64 @@ int free_phy_mem(uint32_t paddr, int page_count) {
     if (!phy_addr_alloc) {
         return -1;
     }
-    uint32_t bit_idx =
-        (paddr - phy_addr_alloc->start) / phy_addr_alloc->page_size;
-    for (int i = 0; i < page_count; i++) {
-        bitmap_set(&phy_addr_alloc->bitmap, bit_idx + i, 0);
-    }
+    alloc_mem_use(phy_addr_alloc, paddr, page_count, 0);
     return 0;
+}
+
+int free_vir_mem(uint32_t vaddr, int page_count) {
+    if (vaddr < user_phy_addr_alloc.start) {
+        alloc_mem_use(&kernel_vir_addr_alloc, vaddr, page_count, 0);
+    }
+    // TODO free user virtual memory
+    return -1;
+}
+
+pde_t *get_pde(uint32_t page_dir, uint32_t vaddr) {
+    pde_t *pde = (pde_t *)page_dir;
+    if (!pde) {
+        return (pde_t *)NULL;
+    }
+    return pde + pde_index(vaddr);
+}
+
+pte_t *get_pte(uint32_t page_dir, uint32_t vaddr) {
+    pde_t *pde = get_pde(page_dir, vaddr);
+    if (!pde || !pde->present) {
+        return (pte_t *)NULL;
+    }
+    pte_t *pte = (pte_t *)pe_phy_addr(pde->phy_pt_addr);
+    if (!pte) {
+        return (pte_t *)NULL;
+    }
+    return pte + pte_index(vaddr);
+}
+
+/**
+ * @details using paging memory management, virtual address high 10 bit is the
+ * index in page directory, middle 10 bit is the index in page table, the
+ * physical stored in pte value
+ * 1. using vaddr high 10 bit get the index in page directory to get page table
+ * address
+ * 2. convert page table address into pte_t pointer, and using vaddr middle 10
+ * bit get the index in page table to get page start address
+ * 3. vaddr last 12 bit is the offset with page start address, get physical
+ * using page start address add the offset
+ */
+uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr) {
+    pte_t *pte = get_pte(page_dir, vaddr);
+    if (!pte || !pte->present) {
+        return -1;
+    }
+    return phy_addr(pe_phy_addr(pte->phy_page_addr), vaddr);
+}
+
+int free_mem(uint32_t page_dir, uint32_t vaddr, int page_count) {
+    uint32_t paddr = vaddr2paddr(page_dir, vaddr);
+    if (paddr < 0) {
+        return -1;
+    }
+    free_phy_mem(paddr, page_count);
+    free_vir_mem(vaddr, page_count);
 }
 
 typedef struct {
@@ -74,8 +166,6 @@ typedef struct {
     void *pstart;
     uint32_t perm;
 } mem_map;
-
-static pde_t kernel_page_dir[PDE_CNT] __attribute__((aligned(MEM_PAGE_SIZE)));
 
 pte_t *find_pte_alloc(phy_addr_alloc_t *phy_addr_alloc, pde_t *page_dir,
                       uint32_t vaddr, int alloc) {
@@ -88,7 +178,9 @@ pte_t *find_pte_alloc(phy_addr_alloc_t *phy_addr_alloc, pde_t *page_dir,
             return (pte_t *)0;
         }
         // alloc a page from physical memeory
-        uint32_t phy_addr = alloc_phy_mem(phy_addr_alloc, 1);
+        uint32_t addrs[2];
+        alloc_mem(phy_addr_alloc, &kernel_vir_addr_alloc, 1, addrs);
+        uint32_t phy_addr = addrs[0];
         if (phy_addr == 0) {
             return (pte_t *)0;
         }
@@ -167,13 +259,18 @@ void init_paging(uint64_t all_mem) {
 
     uint32_t mem_up1m_free = kernel_all_memory - MEM_EXT_START;
     mem_up1m_free = down2(mem_up1m_free, MEM_PAGE_SIZE);
-    init_phy_addr_alloc(&kernel_phy_addr_alloc, mem_free, MEM_EXT_START,
-                        mem_up1m_free, MEM_PAGE_SIZE);
+    init_addr_alloc(&kernel_phy_addr_alloc, mem_free, MEM_EXT_START,
+                    mem_up1m_free, MEM_PAGE_SIZE);
+
+    init_addr_alloc(&kernel_vir_addr_alloc,
+                    mem_free + kernel_phy_addr_alloc.bitmap.bytes_len,
+                    MEM_EXT_START, mem_up1m_free, MEM_PAGE_SIZE);
 
     // user bitmap is set after kernel bitmap, both all is 4G/4K/8=128K
-    init_phy_addr_alloc(&user_phy_addr_alloc,
-                        mem_free + kernel_phy_addr_alloc.bitmap.bytes_len,
-                        kernel_all_memory, user_all_memory, MEM_PAGE_SIZE);
+    init_addr_alloc(&user_phy_addr_alloc,
+                    mem_free + kernel_phy_addr_alloc.bitmap.bytes_len +
+                        kernel_vir_addr_alloc.bitmap.bytes_len,
+                    kernel_all_memory, user_all_memory, MEM_PAGE_SIZE);
 
     extern uint8_t s_text[], e_text[], s_data[], e_data[];
     extern uint8_t kernel_base[];
@@ -218,7 +315,9 @@ uint32_t current_page_dir() { return read_page_dir(); }
  * 3. copy shared pde from kernel page_dir into user page_dir
  */
 uint32_t create_uvm() {
-    uint32_t phy_addr = alloc_phy_mem(&kernel_phy_addr_alloc, 1);
+    uint32_t addrs[2];
+    alloc_mem(&kernel_phy_addr_alloc, &kernel_vir_addr_alloc, 1, addrs);
+    uint32_t phy_addr = addrs[0];
     if (phy_addr < 0) {
         return -1;
     }
@@ -268,8 +367,12 @@ int alloc_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size,
     uint32_t page_count = up2(size, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
     // alloc physical memory every time a page for using the fragment physical
     // memory
+    phy_addr_alloc_t *phy_addr_alloc = &user_phy_addr_alloc;
+    if ((pde_t *)page_dir == kernel_page_dir) {
+        phy_addr_alloc = &kernel_phy_addr_alloc;
+    }
     for (int i = 0; i < page_count; i++) {
-        uint32_t paddr = alloc_phy_mem(&user_phy_addr_alloc, 1);
+        uint32_t paddr = alloc_phy_mem(phy_addr_alloc, 1);
         if (!paddr) {
             return -1;
         }
@@ -282,45 +385,6 @@ int alloc_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size,
         vstart += MEM_PAGE_SIZE;
     }
     return 0;
-}
-
-pde_t *get_pde(uint32_t page_dir, uint32_t vaddr) {
-    pde_t *pde = (pde_t *)page_dir;
-    if (!pde) {
-        return (pde_t *)NULL;
-    }
-    return pde + pde_index(vaddr);
-}
-
-pte_t *get_pte(uint32_t page_dir, uint32_t vaddr) {
-    pde_t *pde = get_pde(page_dir, vaddr);
-    if (!pde || !pde->present) {
-        return (pte_t *)NULL;
-    }
-    pte_t *pte = (pte_t *)pe_phy_addr(pde->phy_pt_addr);
-    if (!pte) {
-        return (pte_t *)NULL;
-    }
-    return pte + pte_index(vaddr);
-}
-
-/**
- * @details using paging memory management, virtual address high 10 bit is the
- * index in page directory, middle 10 bit is the index in page table, the
- * physical stored in pte value
- * 1. using vaddr high 10 bit get the index in page directory to get page table
- * address
- * 2. convert page table address into pte_t pointer, and using vaddr middle 10
- * bit get the index in page table to get page start address
- * 3. vaddr last 12 bit is the offset with page start address, get physical
- * using page start address add the offset
- */
-uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr) {
-    pte_t *pte = get_pte(page_dir, vaddr);
-    if (!pte || !pte->present) {
-        return -1;
-    }
-    return phy_addr(pe_phy_addr(pte->phy_page_addr), vaddr);
 }
 
 int free_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size) {

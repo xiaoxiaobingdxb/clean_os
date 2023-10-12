@@ -3,10 +3,17 @@
 
 #include "common/interrupt/memory_info.h"
 #include "common/types/basic.h"
+#include "common/cpu/mmu.h"
+#include "common/cpu/mem_page.h"
 
 #define PTE_P (1 << 0)
 #define PTE_W (1 << 1)
 #define PTE_U (1 << 2)
+
+#define PDE_CNT 1024
+#define PTE_CNT 1024
+
+static pde_t kernel_page_dir[PDE_CNT] __attribute__((aligned(MEM_PAGE_SIZE)));
 
 void init_gdt();
 
@@ -45,5 +52,7 @@ int alloc_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size,
  * to free physical memory alloc, and delete pte in page table
  */
 int free_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size);
+
+uint32_t alloc_kernel_mem(int page_count);
 
 #endif

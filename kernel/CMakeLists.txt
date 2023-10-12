@@ -6,7 +6,8 @@ set(CMAKE_EXE_LINKER_FLAGS "-m elf_i386 -T ${PROJECT_SOURCE_DIR}/kernel.lds ${LI
 set(CMAKE_C_LINK_EXECUTABLE "${LINKER_TOOL} <OBJECTS> ${CMAKE_EXE_LINKER_FLAGS} -o ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.elf")
 
 file(GLOB_RECURSE C_LIST "*.c" "*.h")
-add_executable(${PROJECT_NAME} start.S ${C_LIST})
+file(GLOB_RECURSE S_LIST "*.S")
+add_executable(${PROJECT_NAME} ${S_LIST} ${C_LIST})
 
 add_custom_command(TARGET ${PROJECT_NAME}
     POST_BUILD

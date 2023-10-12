@@ -1,14 +1,12 @@
 {
     "files.associations": {
-        "string.h": "c",
-        "mem_page.h": "c",
-        "mmu.h": "c",
-        "bitmap.h": "c",
-        "gdt.h": "c",
         "basic.h": "c",
-        "lib.h": "c",
-        "byte.h": "c",
+        "string.h": "c",
         "mem.h": "c",
-        "math.h": "c"
+        "config.h": "c",
+        "thread.h": "c",
+        "mmu.h": "c",
+        "mem_page.h": "c"
     }
+    
 }

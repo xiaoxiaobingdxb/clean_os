@@ -4,6 +4,8 @@
 #include "common/tool/lib.h"
 #include "memory/config.h"
 #include "memory/mem.h"
+#include "thread/thread.h"
+#include "common/lib/string.h"
 
 void test_remap() {
     pde_t *page_dir = (pde_t *)read_cr3();
@@ -116,8 +118,25 @@ void kernel_init(struct boot_params *params) {
     init_mem(bparams);
 }
 
+task_struct *test1, *test2;
+
+void test_thread_func1(void *arg) {
+    char* name = (char*)arg;
+    for (; ;) {
+        switch_to(test1, test2);
+    }
+}
+void test_thread_func2(void *arg) {
+    char* name = (char*)arg;
+    for (; ;) {
+        switch_to(test2, test1);
+    }
+}
+
 void main() {
-    test_uv_page_dir();
+    // test_uv_page_dir();
+    test2 = thread_start("thread_test2", test_thread_func2, "thread_test2");
+    test1 = thread_start1("thread_test1", test_thread_func1, "thread_test1");
     for (;;) {
         hlt();
     }
