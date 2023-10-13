@@ -6,7 +6,9 @@
         "config.h": "c",
         "thread.h": "c",
         "mmu.h": "c",
-        "mem_page.h": "c"
+        "mem_page.h": "c",
+        "idt.h": "c",
+        "intr.h": "c"
     }
     
 }

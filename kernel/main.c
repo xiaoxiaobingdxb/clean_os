@@ -6,6 +6,7 @@
 #include "memory/mem.h"
 #include "thread/thread.h"
 #include "common/lib/string.h"
+#include "interrupt/intr.h"
 
 void test_remap() {
     pde_t *page_dir = (pde_t *)read_cr3();
@@ -116,6 +117,8 @@ void kernel_init(struct boot_params *params) {
     // test_reload_paing();
 
     init_mem(bparams);
+    init_int();
+
 }
 
 task_struct *test1, *test2;
@@ -135,9 +138,10 @@ void test_thread_func2(void *arg) {
 
 void main() {
     // test_uv_page_dir();
-    test2 = thread_start("thread_test2", test_thread_func2, "thread_test2");
-    test1 = thread_start1("thread_test1", test_thread_func1, "thread_test1");
+    // test2 = thread_start("thread_test2", test_thread_func2, "thread_test2");
+    // test1 = thread_start1("thread_test1", test_thread_func1, "thread_test1");
     for (;;) {
+        // int a = 10 / 0;
         hlt();
     }
 }

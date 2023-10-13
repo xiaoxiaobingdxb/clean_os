@@ -21,6 +21,9 @@ static inline void outb(uint16_t port, uint8_t v) {
     __asm__ __volatile__("outb %[v], %[p]"::[p]"d"(port), [v]"a"(v));
 }
 
+static inline void io_wait(void) {
+    outb(0x80, 0);
+}
 
 static inline uint16_t inw(uint16_t port) {
     uint16_t rv;
