@@ -118,7 +118,7 @@ void kernel_init(struct boot_params *params) {
 
     init_mem(bparams);
     init_int();
-
+    init_task();
 }
 
 task_struct *test1, *test2;
@@ -126,20 +126,21 @@ task_struct *test1, *test2;
 void test_thread_func1(void *arg) {
     char* name = (char*)arg;
     for (; ;) {
-        switch_to(test1, test2);
+        hlt();
     }
 }
 void test_thread_func2(void *arg) {
     char* name = (char*)arg;
     for (; ;) {
-        switch_to(test2, test1);
+        hlt();
     }
 }
 
 void main() {
     // test_uv_page_dir();
-    // test2 = thread_start("thread_test2", test_thread_func2, "thread_test2");
-    // test1 = thread_start1("thread_test1", test_thread_func1, "thread_test1");
+    enter_main_thread();
+    test2 = thread_start("thread_test2", 10, test_thread_func2, "thread_test2");
+    test1 = thread_start("thread_test1", 15, test_thread_func1, "thread_test1");
     for (;;) {
         // int a = 10 / 0;
         hlt();

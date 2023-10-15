@@ -2,6 +2,7 @@
 #define THREAD_THREAD_H
 
 #include "common/types/basic.h"
+#include "common/lib/list.h"
 
 #define TASK_NAME_LEN 16
 
@@ -28,13 +29,23 @@ typedef struct {
     uint32_t *self_kstack;
     char name[TASK_NAME_LEN];
     task_status status;
+    list_node general_tag, all_tag;
+    uint32_t priority;
+    uint32_t ticks; // time running at cpu
+    uint32_t elapset_ticks; // time running at cpu all life
 } task_struct;
 
 task_struct *cur_thread();
 
-task_struct *thread_start(const char*name, thread_func func, void *func_arg);
+task_struct *thread_start(const char*name, uint32_t priority, thread_func func, void *func_arg);
 task_struct *thread_start1(const char *name, thread_func func, void *func_arg);
 
 extern void switch_to(task_struct *cur, task_struct *next);
+
+void schedule();
+
+void init_task();
+
+void enter_main_thread();
 
 #endif

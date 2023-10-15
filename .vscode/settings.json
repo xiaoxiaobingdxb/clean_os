@@ -8,7 +8,10 @@
         "mmu.h": "c",
         "mem_page.h": "c",
         "idt.h": "c",
-        "intr.h": "c"
+        "intr.h": "c",
+        "list.h": "c",
+        "std.h": "c",
+        "__node_handle": "c"
     }
     
 }

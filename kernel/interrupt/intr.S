@@ -68,7 +68,8 @@ intr_entry_\intr_no:
 .endm
 
     .text
-intr_entry 0x00,1 // divide zero
+    #include "intr_no.h"
+intr_entry INTR_NO_DIVIDE,1 // divide zero
 intr_entry 0x01,1
 intr_entry 0x02,1
 intr_entry 0x03,1 
@@ -100,8 +101,8 @@ intr_entry 0x1c,1
 intr_entry 0x1d,0
 intr_entry 0x1e,0
 intr_entry 0x1f,1 
-intr_entry 0x20,1	// timer
-intr_entry 0x21,1	// keyboard
+intr_entry INTR_NO_TIMER,1	// timer
+intr_entry INTR_NO_KYB,1	// keyboard
 intr_entry 0x22,1
 intr_entry 0x23,1
 intr_entry 0x24,1

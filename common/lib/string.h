@@ -9,5 +9,4 @@ uint32_t strlen(const char *str);
 char *strchr(const char *str, const char ch);
 char *strrchr(const char *str, const char ch);
 uint32_t strchrs(const char* str, const char ch);
-#define NULL ((void *)0)
 #endif
