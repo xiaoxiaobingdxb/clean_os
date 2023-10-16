@@ -20,7 +20,7 @@ typedef void thread_func(void *);
 typedef struct {
     uint32_t ebp, ebx, edi, esi;
     void (*eip)(thread_func *func, void *func_arg);
-    void(*unused_readdr);
+    void(*unused_retaddr);
     thread_func *func;
     void *func_arg;
 } thread_stack;

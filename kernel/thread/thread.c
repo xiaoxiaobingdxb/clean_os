@@ -1,11 +1,11 @@
 #include "thread.h"
 
 #include "../memory/mem.h"
+#include "common/cpu/contrl.h"
 #include "common/cpu/mem_page.h"
 #include "common/lib/list.h"
 #include "common/lib/string.h"
 #include "timer.h"
-#include "common/cpu/contrl.h"
 
 list ready_tasks;
 list all_tasks;
@@ -49,7 +49,8 @@ task_struct *cur_thread() {
     return (task_struct *)(esp & 0xfffff000);
 }
 
-task_struct *thread_start(const char *name, uint32_t priority, thread_func func, void *func_arg) {
+task_struct *thread_start(const char *name, uint32_t priority, thread_func func,
+                          void *func_arg) {
     task_struct *thread = (task_struct *)alloc_kernel_mem(1);
     init_thread(thread, name, priority);
     thread_create(thread, func, func_arg);
@@ -70,9 +71,11 @@ task_struct *thread_start1(const char *name, thread_func func, void *func_arg) {
 
 void schedule() {
     task_struct *cur = cur_thread();
-    cur->elapset_ticks++;
-    if (cur->ticks-- > 0) { // continue run current task
-        return;
+    if (cur->status == TASK_RUNNING) {
+        cur->elapset_ticks++;
+        if (cur->ticks-- > 0) {  // continue run current task
+            return;
+        }
     }
     list_node *next_tag = popl(&ready_tasks);
     task_struct *next = tag2entry(task_struct, general_tag, next_tag);

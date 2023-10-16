@@ -125,13 +125,17 @@ task_struct *test1, *test2;
 
 void test_thread_func1(void *arg) {
     char* name = (char*)arg;
+    int count = 0;
     for (; ;) {
+        count++;
         hlt();
     }
 }
 void test_thread_func2(void *arg) {
     char* name = (char*)arg;
+    int count = 0;
     for (; ;) {
+        count++;
         hlt();
     }
 }
