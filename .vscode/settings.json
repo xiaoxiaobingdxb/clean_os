@@ -11,7 +11,8 @@
         "intr.h": "c",
         "list.h": "c",
         "std.h": "c",
-        "__node_handle": "c"
+        "__node_handle": "c",
+        "intr_no.h": "c"
     }
     
 }
