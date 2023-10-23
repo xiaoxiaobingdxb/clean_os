@@ -15,4 +15,8 @@ static inline void lgdt(uint32_t start, uint32_t size) {
     __asm__ __volatile__("lgdt %[g]" ::[g] "m"(gdt));
 }
 
+static inline void ltr(int selector) {
+    __asm__ __volatile__("ltr %%ax" ::"a"(selector));
+}
+
 #endif

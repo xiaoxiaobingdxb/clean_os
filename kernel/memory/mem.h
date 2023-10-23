@@ -1,10 +1,11 @@
 #ifndef MEMORY_MEM_H
 #define MEMORY_MEM_H
 
-#include "common/interrupt/memory_info.h"
-#include "common/types/basic.h"
-#include "common/cpu/mmu.h"
 #include "common/cpu/mem_page.h"
+#include "common/cpu/mmu.h"
+#include "common/interrupt/memory_info.h"
+#include "common/lib/bitmap.h"
+#include "common/types/basic.h"
 
 #define PTE_P (1 << 0)
 #define PTE_W (1 << 1)
@@ -13,9 +14,19 @@
 #define PDE_CNT 1024
 #define PTE_CNT 1024
 
-static pde_t kernel_page_dir[PDE_CNT] __attribute__((aligned(MEM_PAGE_SIZE)));
+struct addr_alloc_t_ {
+    uint32_t start;
+    uint32_t page_size;
+    bitmap_t bitmap;
+};
+typedef struct addr_alloc_t_ phy_addr_alloc_t;
+typedef struct addr_alloc_t_ vir_addr_alloc_t;
+
+uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr);
 
 void init_gdt();
+
+void update_tss_esp(uint32_t esp);
 
 void init_paging(uint64_t all_mem);
 
@@ -54,5 +65,68 @@ int alloc_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size,
 int free_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size);
 
 uint32_t alloc_kernel_mem(int page_count);
+
+/**
+ * @brief alloc_mem is to alloc memery from vir_addr_alloc and phy_addr_alloc,
+ * but not map virtual memory into physical memory
+ * @return if success 0 else < 0
+ */
+int alloc_mem(vir_addr_alloc_t *vir_addr_alloc, int page_count,
+               uint32_t addrs[2]);
+
+/**
+ * @brief alloc_mem_page is to alloc continuous virutal memory and alloc discontinuous physical memory
+ * @param vir_addr_alloc
+ * @param page_count
+ * @param vaddr out param allocated continuous virutal memory
+ * @param paddrs out param allocated discontinuous virtual memory, so it is a array
+ * @return if success 0 else < 0
+*/
+int alloc_mem_page(vir_addr_alloc_t *vir_addr_alloc, int page_count, uint32_t *vaddr, uint32_t *paddrs);
+
+/**
+ * @brief reply memory to virtual memory and physical memory
+ */
+int unalloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                uint32_t vaddr, uint32_t page_count);
+
+/**
+ * @brief map vaddr(virtual memory) into paddr(physical memory) with
+ * page_count(4K) vaddr and paddr if not aligned to a page(4K), it will be
+ * aligned to a page
+ */
+uint32_t map_mem(uint32_t page_dir, uint32_t vaddr, uint32_t paddr, int page_count,
+            bool override);
+
+uint32_t map_mem_page(uint32_t page_dir, uint32_t vaddr, uint32_t *paddrs, int page_count, bool override);
+
+/**
+ * @brief remove paging memory from virtual memory to physical memory
+ */
+int unmap_mem(uint32_t page_dir, uint32_t vaddr, int page_count);
+
+/**
+ * @brief malloc virtual/physical memory and paging map virtual memory to
+ * physical memory
+ * @return start of allocated the vitual memory, if not aligned to a page(4K), it will be
+ * aligned to a page
+ */
+uint32_t malloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                    int page_count);
+/**
+ * @brief malloc virtual/physical memory at vaddr in vitual memory
+ * @return start of allocated the vitual memory, if not aligned to a page(4K), it will be
+ * aligned to a page
+ */
+uint32_t malloc_mem_vaddr(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                          uint32_t vaddr, int page_count);
+
+/**
+ * free virtual/physical memory and remove paing map
+ */
+int unmalloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                 uint32_t vaddr, int page_count);
+
+void init_user_vir_addr_alloc(vir_addr_alloc_t *alloc);
 
 #endif

@@ -44,15 +44,15 @@ uint8_t map_pyh_buff[KB(4)] __attribute__((aligned(KB(4)))) = {0x36};
 void set_page() {
 #define MAP_ADDR 0x40000000
 
-    static uint32_t page_dir2[KB(1)] __attribute__((aligned(KB(4)))) = {0};
+    // static uint32_t page_dir2[KB(1)] __attribute__((aligned(KB(4)))) = {0};
 
-    page_dir2[MAP_ADDR >> 12 & 0x3ff] =
-        (uint32_t)map_pyh_buff | PDE_P | PDE_W | PDE_U;
+    // page_dir2[MAP_ADDR >> 12 & 0x3ff] =
+    //     (uint32_t)map_pyh_buff | PDE_P | PDE_W | PDE_U;
 
-    uint32_t *p = page_dir2;
+    // uint32_t *p = page_dir2;
 
-    uint32_t *page_dir = (uint32_t *)read_cr3();
-    page_dir[MAP_ADDR >> 22] = (uint32_t)page_dir2 | PDE_P | PDE_W | PDE_U;
+    // uint32_t *page_dir = (uint32_t *)read_cr3();
+    // page_dir[MAP_ADDR >> 22] = (uint32_t)page_dir2 | PDE_P | PDE_W | PDE_U;
 }
 uint32_t page_position = MB(4);
 // alloc some page from physical memory

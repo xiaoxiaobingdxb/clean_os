@@ -12,7 +12,23 @@
         "list.h": "c",
         "std.h": "c",
         "__node_handle": "c",
-        "intr_no.h": "c"
+        "intr_no.h": "c",
+        "process.h": "c",
+        "system_error": "cpp",
+        "__bit_reference": "cpp",
+        "atomic": "cpp",
+        "bitset": "cpp",
+        "__memory": "cpp",
+        "limits": "cpp",
+        "locale": "cpp",
+        "optional": "cpp",
+        "ratio": "cpp",
+        "tuple": "cpp",
+        "vector": "cpp",
+        "tool.h": "c",
+        "__threading_support": "c",
+        "thread": "c",
+        "contrl.h": "c"
     }
     
 }

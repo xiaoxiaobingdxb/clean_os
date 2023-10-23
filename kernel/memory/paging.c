@@ -14,17 +14,13 @@
 #define CR4_PSE (1 << 4)
 #define CR0_PG (1 << 31)
 
-struct addr_alloc_t_ {
-    uint32_t start;
-    uint32_t page_size;
-    bitmap_t bitmap;
-};
-typedef struct addr_alloc_t_ phy_addr_alloc_t;
-typedef struct addr_alloc_t_ vir_addr_alloc_t;
+#define MALLOC_MAX_PAGE 1024
 
-static phy_addr_alloc_t kernel_phy_addr_alloc;
-static vir_addr_alloc_t kernel_vir_addr_alloc;
-static phy_addr_alloc_t user_phy_addr_alloc;
+phy_addr_alloc_t kernel_phy_addr_alloc;
+vir_addr_alloc_t kernel_vir_addr_alloc;
+phy_addr_alloc_t user_phy_addr_alloc;
+
+pde_t kernel_page_dir[PDE_CNT] __attribute__((aligned(MEM_PAGE_SIZE)));
 
 void init_addr_alloc(struct addr_alloc_t_ *addr_alloc, uint8_t *bits,
                      uint32_t start, uint32_t size, uint32_t page_size) {
@@ -36,12 +32,35 @@ void init_addr_alloc(struct addr_alloc_t_ *addr_alloc, uint8_t *bits,
     addr_alloc->page_size = page_size;
 }
 
+phy_addr_alloc_t *get_phy_addr_alloc(uint32_t paddr) {
+    phy_addr_alloc_t *phy_addr_alloc = &user_phy_addr_alloc;
+    if (paddr < phy_addr_alloc->start) {
+        phy_addr_alloc = &kernel_phy_addr_alloc;
+    }
+    return phy_addr_alloc;
+}
+
 void alloc_mem_use(struct addr_alloc_t_ *addr_alloc, uint32_t addr,
                    int page_count, uint8_t use) {
     int bit_idx = (addr - addr_alloc->start) / addr_alloc->page_size;
     for (int i = 0; i < page_count; i++) {
         bitmap_set(&addr_alloc->bitmap, bit_idx + i, use);
     }
+}
+
+int free_phy_mem(uint32_t paddr, int page_count) {
+    phy_addr_alloc_t *phy_addr_alloc = get_phy_addr_alloc(paddr);
+    if (!phy_addr_alloc) {
+        return -1;
+    }
+    alloc_mem_use(phy_addr_alloc, paddr, page_count, 0);
+    return 0;
+}
+
+int free_vir_mem(vir_addr_alloc_t *vir_addr_alloc, uint32_t vaddr,
+                 int page_count) {
+    alloc_mem_use(vir_addr_alloc, vaddr, page_count, 0);
+    return 0;
 }
 
 uint32_t alloc_phy_mem(phy_addr_alloc_t *phy_addr_alloc, int page_count) {
@@ -54,6 +73,24 @@ uint32_t alloc_phy_mem(phy_addr_alloc_t *phy_addr_alloc, int page_count) {
     return addr;
 }
 
+int alloc_phy_mem_page(phy_addr_alloc_t *phy_addr_alloc, int page_count,
+                       uint32_t *paddrs) {
+    if (page_count > sizeof(paddrs) / sizeof(uint32_t)) {
+        return -1;
+    }
+    for (int i = 0; i < page_count; i++) {
+        uint32_t paddr = alloc_phy_mem(phy_addr_alloc, 1);
+        if (paddr < 0) {  // if err, free all allocated memory
+            for (int j = 0; j < i; j++) {
+                free_phy_mem(paddrs[j], 1);
+            }
+            return -1;
+        }
+        paddrs[i] = paddr;
+    }
+    return 0;
+}
+
 uint32_t alloc_vir_mem(vir_addr_alloc_t *vir_addr_alloc, int page_count) {
     int bit_idx = bitmap_scan(&vir_addr_alloc->bitmap, page_count);
     if (bit_idx < 0) {
@@ -64,52 +101,76 @@ uint32_t alloc_vir_mem(vir_addr_alloc_t *vir_addr_alloc, int page_count) {
     return addr;
 }
 
-void alloc_mem(phy_addr_alloc_t *phy_addr_alloc,
-               vir_addr_alloc_t *vir_addr_alloc, int page_count,
-               uint32_t addrs[2]) {
-    if (phy_addr_alloc == &kernel_phy_addr_alloc) {
-        uint32_t addr = alloc_phy_mem(phy_addr_alloc, page_count);
-        alloc_mem_use(&kernel_vir_addr_alloc, addr, page_count, 1);
-        addrs[0] = addrs[1] = addr;
+int alloc_mem(vir_addr_alloc_t *vir_addr_alloc, int page_count,
+              uint32_t addrs[2]) {
+    if (vir_addr_alloc->bitmap.bits == kernel_vir_addr_alloc.bitmap.bits) {
+        uint32_t addr = alloc_phy_mem(&kernel_phy_addr_alloc, page_count);
+        if (addr >= 0) {
+            alloc_mem_use(&kernel_vir_addr_alloc, addr, page_count, 1);
+            addrs[0] = addrs[1] = addr;
+        } else {
+            return -1;
+        }
     } else {
-        addrs[0] = alloc_phy_mem(phy_addr_alloc, page_count);
-        addrs[1] = alloc_vir_mem(vir_addr_alloc, page_count);
+        addrs[0] = alloc_phy_mem(&user_phy_addr_alloc, page_count);
+        if (addrs[0] >= 0) {
+            addrs[1] = alloc_vir_mem(vir_addr_alloc, page_count);
+        } else {
+            return -1;
+        }
     }
+    return 0;
+}
+
+int alloc_mem_page(vir_addr_alloc_t *vir_addr_alloc, int page_count,
+                   uint32_t *vaddr, uint32_t *paddrs) {
+    if (page_count > sizeof(paddrs) / sizeof(uint32_t)) {
+        return -1;
+    }
+    phy_addr_alloc_t *phy_addr_alloc = &user_phy_addr_alloc;
+    if (vir_addr_alloc->bitmap.bits == kernel_phy_addr_alloc.bitmap.bits) {
+        phy_addr_alloc = &kernel_phy_addr_alloc;
+    }
+    uint32_t vaddr_start = alloc_vir_mem(vir_addr_alloc, page_count);
+    if (vaddr_start < 0) {
+        return -1;
+    }
+    *vaddr = vaddr_start;
+    for (int i = 0; i < page_count; i++) {
+        uint32_t paddr = alloc_phy_mem(phy_addr_alloc, 1);
+        if (paddr < 0) {  // if err, to free all already virtual/physical memory
+            free_vir_mem(vir_addr_alloc, vaddr_start, page_count);
+            for (int j = 0; j < i; j++) {
+                free_phy_mem(paddrs[j], 1);
+            }
+            return -1;
+        }
+        // if success
+        paddrs[i] = paddr;
+    }
+    return 0;
 }
 
 uint32_t alloc_kernel_mem(int page_count) {
     uint32_t addrs[2];
-    alloc_mem(&kernel_phy_addr_alloc, &kernel_vir_addr_alloc, page_count,
-              addrs);
+    alloc_mem(&kernel_vir_addr_alloc, page_count, addrs);
     if (addrs[0] < 0 || addrs[1] < 0) {
         return -1;
     }
     return addrs[0];
 }
 
-phy_addr_alloc_t *get_phy_addr_alloc(uint32_t paddr) {
-    phy_addr_alloc_t *phy_addr_alloc = &user_phy_addr_alloc;
-    if (paddr < phy_addr_alloc->start) {
-        phy_addr_alloc = &kernel_phy_addr_alloc;
-    }
-    return phy_addr_alloc;
-}
-
-int free_phy_mem(uint32_t paddr, int page_count) {
-    phy_addr_alloc_t *phy_addr_alloc = get_phy_addr_alloc(paddr);
-    if (!phy_addr_alloc) {
+int unalloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                uint32_t vaddr, uint32_t page_count) {
+    uint32_t paddr = vaddr2paddr(page_dir, vaddr);
+    if (paddr < 0) {
         return -1;
     }
-    alloc_mem_use(phy_addr_alloc, paddr, page_count, 0);
-    return 0;
-}
-
-int free_vir_mem(uint32_t vaddr, int page_count) {
-    if (vaddr < user_phy_addr_alloc.start) {
-        alloc_mem_use(&kernel_vir_addr_alloc, vaddr, page_count, 0);
+    int err = free_phy_mem(paddr, page_count);
+    if (!err) {
+        err = free_vir_mem(vir_addr_alloc, vaddr, page_count);
     }
-    // TODO free user virtual memory
-    return -1;
+    return err;
 }
 
 pde_t *get_pde(uint32_t page_dir, uint32_t vaddr) {
@@ -151,15 +212,6 @@ uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr) {
     return phy_addr(pe_phy_addr(pte->phy_page_addr), vaddr);
 }
 
-int free_mem(uint32_t page_dir, uint32_t vaddr, int page_count) {
-    uint32_t paddr = vaddr2paddr(page_dir, vaddr);
-    if (paddr < 0) {
-        return -1;
-    }
-    free_phy_mem(paddr, page_count);
-    free_vir_mem(vaddr, page_count);
-}
-
 typedef struct {
     void *vstart;
     void *vend;
@@ -167,8 +219,7 @@ typedef struct {
     uint32_t perm;
 } mem_map;
 
-pte_t *find_pte_alloc(phy_addr_alloc_t *phy_addr_alloc, pde_t *page_dir,
-                      uint32_t vaddr, int alloc) {
+pte_t *find_pte_alloc(pde_t *page_dir, uint32_t vaddr, int alloc, int permit) {
     pte_t *pte;
     pde_t *pde = page_dir + pde_index(vaddr);
     if (pde->present) {
@@ -179,12 +230,12 @@ pte_t *find_pte_alloc(phy_addr_alloc_t *phy_addr_alloc, pde_t *page_dir,
         }
         // alloc a page from physical memeory
         uint32_t addrs[2];
-        alloc_mem(phy_addr_alloc, &kernel_vir_addr_alloc, 1, addrs);
+        alloc_mem(&kernel_vir_addr_alloc, 1, addrs);
         uint32_t phy_addr = addrs[0];
         if (phy_addr == 0) {
             return (pte_t *)0;
         }
-        pde->v = phy_addr | PDE_P | PDE_W;
+        pde->v = phy_addr | PDE_P | PDE_W | PDE_U;
         pte = (pte_t *)phy_addr;
         memset((void *)phy_addr, 0, MEM_PAGE_SIZE);
     }
@@ -199,7 +250,7 @@ int create_mem_map(pde_t *page_dir, uint32_t vaddr, uint32_t paddr,
         // if (!phy_addr_alloc) {
         //     return -1;
         // }
-        pte_t *pte = find_pte_alloc(&kernel_phy_addr_alloc, page_dir, vaddr, 1);
+        pte_t *pte = find_pte_alloc(page_dir, vaddr, 1, perm);
         if (pte == (pte_t *)0) {
             return -1;
         }
@@ -242,8 +293,9 @@ int create_big_mem_map(pde_t *page_dir, uint32_t vaddr, uint32_t size,
 #define EBDA_START 0x00080000
 #define MEM_EXT_START MB(1)
 
-static uint64_t phy_all_mem;
-static uint64_t kernel_all_memory;
+uint64_t phy_all_mem;
+uint64_t kernel_all_memory;
+uint64_t user_all_memory;
 
 void init_paging(uint64_t all_mem) {
     phy_all_mem = all_mem;
@@ -255,7 +307,7 @@ void init_paging(uint64_t all_mem) {
     if (kernel_all_memory > GB(1)) {  // kernel use 1GB max
         kernel_all_memory = GB(1);
     }
-    uint64_t user_all_memory = phy_all_mem - kernel_all_memory;
+    user_all_memory = phy_all_mem - kernel_all_memory;
 
     uint32_t mem_up1m_free = kernel_all_memory - MEM_EXT_START;
     mem_up1m_free = down2(mem_up1m_free, MEM_PAGE_SIZE);
@@ -277,9 +329,10 @@ void init_paging(uint64_t all_mem) {
     uint32_t kernel_vstart = MEM_EXT_START;
     uint32_t kernel_vend = kernel_all_memory - 1;
     mem_map kernel_map[] = {
-        {kernel_base, s_text, 0, PTE_W},                    // kernel stack seg
-        {s_text, e_text, s_text, 0},                        // kernel code seg
-        {s_data, (void *)(EBDA_START - 1), s_data, PTE_W},  // kernel data seg
+        {kernel_base, s_text, 0, PTE_U | PTE_W},  // kernel stack seg
+        {s_text, e_text, s_text, PTE_U | PTE_W},  // kernel code seg
+        {s_data, (void *)(EBDA_START - 1), s_data,
+         PTE_U | PTE_W},  // kernel data seg
         {(void *)kernel_vstart, (void *)kernel_vend, (void *)MEM_EXT_START,
          PTE_U | PTE_W},  //
     };
@@ -316,7 +369,7 @@ uint32_t current_page_dir() { return read_page_dir(); }
  */
 uint32_t create_uvm() {
     uint32_t addrs[2];
-    alloc_mem(&kernel_phy_addr_alloc, &kernel_vir_addr_alloc, 1, addrs);
+    alloc_mem(&kernel_vir_addr_alloc, 1, addrs);
     uint32_t phy_addr = addrs[0];
     if (phy_addr < 0) {
         return -1;
@@ -393,7 +446,7 @@ int free_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size) {
     // continuous,so we need to free one page by on page
     for (int i = 0; i < page_count; i++) {
         uint32_t paddr = vaddr2paddr(page_dir, vstart);
-        if (!paddr) {
+        if (paddr < 0) {
             return -1;
         }
         int err = free_phy_mem(paddr, 1);
@@ -408,4 +461,117 @@ int free_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size) {
         vstart += MEM_PAGE_SIZE;
     }
     return 0;
+}
+
+uint32_t map_mem(uint32_t page_dir, uint32_t vaddr, uint32_t paddr,
+                 int page_count, bool override) {
+    vaddr = down2(vaddr, MEM_PAGE_SIZE);
+    uint32_t ret_vaddr = vaddr;
+    paddr = down2(paddr, MEM_PAGE_SIZE);
+    for (int i = 0; i < page_count; i++) {
+        uint32_t get_paddr = vaddr2paddr(page_dir, vaddr);
+        if (get_paddr >= 0 && !override) {  // already map
+            return -1;
+        }
+        int permit = PTE_W;
+        if ((pde_t *)page_dir != kernel_page_dir) {
+            permit |= PTE_U;
+        }
+        int err = create_mem_map((pde_t *)page_dir, vaddr, paddr, 1, permit);
+        if (err) {
+            return -1;
+        }
+        vaddr += MEM_PAGE_SIZE;
+        paddr += MEM_PAGE_SIZE;
+    }
+    return ret_vaddr;
+}
+
+uint32_t map_mem_page(uint32_t page_dir, uint32_t vaddr, uint32_t *paddrs,
+                      int page_count, bool override) {
+    if (page_count > sizeof(paddrs) / sizeof(uint32_t)) {
+        return -1;
+    }
+    vaddr = down2(vaddr, MEM_PAGE_SIZE);
+    uint32_t ret_vaddr = vaddr;
+    for (int i = 0; i < page_count; i++) {
+        uint32_t addr = map_mem(page_dir, vaddr, paddrs[i], 1, override);
+        if (addr < 0) {
+            for (int j = 0; j < i; j++) {
+                unmap_mem(page_dir, ret_vaddr + j * MEM_PAGE_SIZE, 1);
+            }
+            return -1;
+        }
+        vaddr += MEM_PAGE_SIZE;
+    }
+    return ret_vaddr;
+}
+
+int unmap_mem(uint32_t page_dir, uint32_t vaddr, int page_count) {
+    vaddr = down2(vaddr, MEM_PAGE_SIZE);
+    for (int i = 0; i < page_count; i++) {
+        pte_t *pte = find_pte((pde_t *)page_dir, vaddr, 0);
+        if (pte) {
+            pte->present = !PTE_P;  // only reset present field
+        }
+        vaddr += MEM_PAGE_SIZE;
+    }
+}
+
+uint32_t malloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                    int page_count) {
+    if (page_count > MALLOC_MAX_PAGE) {
+        return -1;
+    }
+    uint32_t vaddr;
+    uint32_t paddrs[MALLOC_MAX_PAGE];
+    int err = alloc_mem_page(vir_addr_alloc, page_count, &vaddr, paddrs);
+    if (err) {
+        return -1;
+    }
+    return map_mem_page(page_dir, vaddr, paddrs, page_count, 1);
+}
+
+uint32_t malloc_mem_vaddr(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                          uint32_t vaddr, int page_count) {
+    vaddr = down2(vaddr, MEM_PAGE_SIZE);  // aligned a page(4K)
+    phy_addr_alloc_t *phy_addr_alloc = &user_phy_addr_alloc;
+    if (vir_addr_alloc->bitmap.bits == kernel_vir_addr_alloc.bitmap.bits) {
+        phy_addr_alloc = &kernel_phy_addr_alloc;
+    }
+    for (int i = 0; i < page_count; i++) {
+        pte_t *pte = get_pte(page_dir, vaddr + i * MEM_PAGE_SIZE);
+        if (pte != NULL &&
+            pte->present) {  // virtual memory had used to be allocated
+            return -1;
+        }
+    }
+    if (page_count > MALLOC_MAX_PAGE) {
+        return -1;
+    }
+    uint32_t paddrs[MALLOC_MAX_PAGE];
+    int err = alloc_phy_mem_page(phy_addr_alloc, page_count, paddrs);
+    if (err) {
+        return -1;
+    }
+    alloc_mem_use(vir_addr_alloc, vaddr, page_count, 1);
+    return map_mem_page(page_dir, vaddr, paddrs, page_count, 1);
+}
+
+int unmalloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
+                 uint32_t vaddr, int page_count) {
+    int err = unalloc_mem(page_dir, vir_addr_alloc, vaddr, page_count);
+    if (err) {
+        return err;
+    }
+    err = unmap_mem(page_dir, vaddr, page_count);
+    return err;
+}
+
+void init_user_vir_addr_alloc(vir_addr_alloc_t *alloc) {
+    uint32_t bytes_len = (user_all_memory / MEM_PAGE_SIZE + 7) / 8;
+    uint32_t bitmap_pg_cnt = up2(bytes_len, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
+    uint32_t bits = alloc_kernel_mem(bitmap_pg_cnt);
+    init_addr_alloc(alloc, (uint8_t *)bits, kernel_all_memory, user_all_memory,
+                    MEM_PAGE_SIZE);
 }

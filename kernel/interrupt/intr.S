@@ -54,6 +54,15 @@ intr_entry_\intr_no:
     push $\intr_no
     mov intr_handlers + 0x4 * \intr_no, %eax
     call  *%eax
+    jmp intr_exit
+
+    .data
+    .long intr_entry_\intr_no
+.endm
+
+    .text
+    .global intr_exit
+intr_exit:
     add $0x04, %esp
     popal
     pop %gs
@@ -63,11 +72,6 @@ intr_entry_\intr_no:
     add $0x04, %esp // skip error code
     iret
 
-    .data
-    .long intr_entry_\intr_no
-.endm
-
-    .text
     #include "intr_no.h"
 intr_entry INTR_NO_DIVIDE,1 // divide zero
 intr_entry 0x01,1

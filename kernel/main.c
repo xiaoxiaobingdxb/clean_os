@@ -7,6 +7,7 @@
 #include "thread/thread.h"
 #include "common/lib/string.h"
 #include "interrupt/intr.h"
+#include "thread/process.h"
 
 void test_remap() {
     pde_t *page_dir = (pde_t *)read_cr3();
@@ -140,12 +141,22 @@ void test_thread_func2(void *arg) {
     }
 }
 
+void test_process() {
+    int count = 0;
+    for (;;) {
+        count++;
+    }
+}
+
 void main() {
     // test_uv_page_dir();
     enter_main_thread();
-    test2 = thread_start("thread_test2", 10, test_thread_func2, "thread_test2");
-    test1 = thread_start("thread_test1", 15, test_thread_func1, "thread_test1");
+    // test2 = thread_start("thread_test2", 10, test_thread_func2, "thread_test2");
+    // test1 = thread_start("thread_test1", 15, test_thread_func1, "thread_test1");
+    process_execute(test_process, "test_process");
+    int count = 0;
     for (;;) {
+        count++;
         // int a = 10 / 0;
         hlt();
     }
