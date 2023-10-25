@@ -28,7 +28,9 @@
         "tool.h": "c",
         "__threading_support": "c",
         "thread": "c",
-        "contrl.h": "c"
+        "contrl.h": "c",
+        "timer.h": "c",
+        "syscall_kernel.h": "c"
     }
     
 }

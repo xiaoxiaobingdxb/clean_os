@@ -52,3 +52,15 @@ void process_execute(void *p_func, const char *name) {
     pushr(&ready_tasks, &thread->general_tag);
     pushr(&all_tasks, &thread->all_tag);
 }
+
+uint32_t process_get_pid() {
+    task_struct *cur = cur_thread();
+    if (cur == NULL) {
+        return -1;
+    }
+    return cur->pid;
+}
+
+int process_execve(const char *filename, char *const argv[], char *const envp[]) {
+    return 0;
+}

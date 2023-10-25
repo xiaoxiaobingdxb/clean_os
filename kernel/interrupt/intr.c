@@ -3,6 +3,7 @@
 #include "common/cpu/contrl.h"
 #include "err.h"
 #include "idt.h"
+#include "../syscall/syscall_kernel.h"
 
 #define PIC1 0x20 /* IO base address for master PIC */
 #define PIC2 0xA0 /* IO base address for slave PIC */
@@ -87,6 +88,7 @@ void init_int() {
     lidt((uint32_t)idt, sizeof(idt));
     pic_init();
     pit_init();
+    init_syscall();
     sti();
 }
 

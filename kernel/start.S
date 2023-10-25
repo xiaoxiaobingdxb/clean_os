@@ -16,7 +16,8 @@ gdt_reload:
     mov %ax, %gs
 
     mov $(stack + KERNEL_STACK_SIZE), %esp
+    and $0xfffff000, %esp // aligned to a page 
     jmp main // go to kernal main function, never back
 
-.bss
-    .comm stack, KERNEL_STACK_SIZE
+    .bss
+.comm stack, KERNEL_STACK_SIZE

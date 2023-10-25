@@ -5,8 +5,8 @@
 #include "common/cpu/mem_page.h"
 #include "common/lib/list.h"
 #include "common/lib/string.h"
-#include "timer.h"
 #include "process.h"
+#include "timer.h"
 
 list ready_tasks;
 list all_tasks;
@@ -31,15 +31,46 @@ void thread_create(task_struct *pthread, thread_func func, void *func_arg) {
 
 task_struct *main_thread;
 
+typedef struct {
+    bitmap_t bitmap;
+    uint32_t start;
+} pid_alloc_t;
+uint8_t pid_bitmap_bits[128];
+pid_alloc_t pid_alloc;
+void init_pid_alloc() {
+    pid_alloc.bitmap.bits = pid_bitmap_bits;
+    pid_alloc.bitmap.bytes_len = sizeof(pid_bitmap_bits);
+    pid_alloc.start = 0;
+    bitmap_init(&pid_alloc.bitmap);
+}
+uint32_t alloc_pid() {
+    int bit_idx = bitmap_scan(&pid_alloc.bitmap, 1);
+    if (bit_idx < 0) {
+        return -1;
+    }
+    bitmap_set(&pid_alloc.bitmap, bit_idx, 1);
+    return bit_idx + pid_alloc.start;
+}
+
+void unalloc_pid(uint32_t pid) {
+    int bit_idx = pid - pid_alloc.start;
+    bitmap_set(&pid_alloc.bitmap, bit_idx, 0);
+}
+
 void init_thread(task_struct *pthread, const char *name, uint32_t priority) {
     memset(pthread, 0, sizeof(*pthread));
     memcpy(pthread->name, name, strlen(name));
+    pthread->pid = alloc_pid();
     if (pthread == main_thread) {
         pthread->status = TASK_RUNNING;
     } else {
         pthread->status = TASK_READY;
     }
     pthread->self_kstack = (uint32_t *)((uint32_t)pthread + MEM_PAGE_SIZE);
+    pthread->general_tag.pre = NULL;
+    pthread->general_tag.next = NULL;
+    pthread->all_tag.pre = NULL;
+    pthread->all_tag.next = NULL;
     pthread->priority = priority;
     pthread->ticks = priority;
     pthread->elapset_ticks = 0;
@@ -108,6 +139,7 @@ void init_task() {
     init_timer();
     init_list(&ready_tasks);
     init_list(&all_tasks);
+    init_pid_alloc();
 }
 
 extern pde_t kernel_page_dir[PDE_CNT] __attribute__((aligned(MEM_PAGE_SIZE)));
@@ -116,7 +148,8 @@ void enter_main_thread() {
     init_thread(main_thread, "main", TASK_DEFAULT_PRIORITY);
     main_thread->page_dir = (uint32_t)kernel_page_dir;
     extern vir_addr_alloc_t kernel_vir_addr_alloc;
-    memcpy(&main_thread->vir_addr_alloc, &kernel_vir_addr_alloc, sizeof(kernel_vir_addr_alloc));
+    memcpy(&main_thread->vir_addr_alloc, &kernel_vir_addr_alloc,
+           sizeof(kernel_vir_addr_alloc));
     pushr(&all_tasks, &main_thread->all_tag);
 }
 
@@ -133,7 +166,8 @@ uint32_t malloc_thread_mem_vaddr(uint32_t vaddr, int page_count) {
     if (cur == NULL) {
         return 0;
     }
-    return malloc_mem_vaddr(cur->page_dir, &cur->vir_addr_alloc, vaddr, page_count);
+    return malloc_mem_vaddr(cur->page_dir, &cur->vir_addr_alloc, vaddr,
+                            page_count);
 }
 
 int unmalloc_thread_mem(uint32_t vaddr, int page_count) {
@@ -144,8 +178,11 @@ int unmalloc_thread_mem(uint32_t vaddr, int page_count) {
     return unmalloc_mem(cur->page_dir, &cur->vir_addr_alloc, vaddr, page_count);
 }
 
-void yield() {
+void thread_yield() {
     task_struct *cur = cur_thread();
+    if (cur == NULL) {
+        return;
+    }
     cur->status = TASK_READY;
     schedule();
 }

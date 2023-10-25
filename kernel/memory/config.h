@@ -11,7 +11,7 @@
 #define USER_SELECTOR_DS ((4 << 3) | 3)
 #define USER_SELECTOR_SS USER_SELECTOR_DS
 #define TSS_SELECTOR ((5 << 3) | 0)
-#define KERNEL_STACK_SIZE KB(8)
+#define KERNEL_STACK_SIZE KB(4)
 
 #define KERNEL_MEM_SIZE_RATE 4
 

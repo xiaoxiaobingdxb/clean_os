@@ -29,6 +29,7 @@ typedef struct {
 
 typedef struct {
     uint32_t *self_kstack;
+    uint32_t pid;
     char name[TASK_NAME_LEN];
     task_status status;
     list_node general_tag, all_tag;
@@ -64,6 +65,6 @@ uint32_t malloc_thread_mem(int page_count);
 uint32_t malloc_thread_mem_vaddr(uint32_t vaddr, int page_count);
 int unmalloc_thread_mem(uint32_t vaddr, int page_count);
 
-void yield();
+void thread_yield();
 
 #endif

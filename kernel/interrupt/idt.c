@@ -20,3 +20,7 @@ void init_intr() {
     }
     // make_intr_desc(idt, IDT_DESC_ATTR_DPL0, intr_entry_test);
 }
+
+void make_intr(int intr_no, uint8_t attr, intr_handler entry) {
+    make_intr_desc(idt + intr_no, attr, entry);
+}

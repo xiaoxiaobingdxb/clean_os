@@ -8,6 +8,7 @@
 #include "common/lib/string.h"
 #include "interrupt/intr.h"
 #include "thread/process.h"
+#include "syscall/syscall_user.h"
 
 void test_remap() {
     pde_t *page_dir = (pde_t *)read_cr3();
@@ -145,6 +146,9 @@ void test_process() {
     int count = 0;
     for (;;) {
         count++;
+        uint32_t pid = get_pid();
+        yield();
+        execve("execve", NULL, NULL);
     }
 }
 
@@ -157,6 +161,7 @@ void main() {
     int count = 0;
     for (;;) {
         count++;
+        uint32_t pid = get_pid();
         // int a = 10 / 0;
         hlt();
     }

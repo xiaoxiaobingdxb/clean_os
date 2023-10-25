@@ -10,8 +10,8 @@ typedef struct list_node_ {
     struct list_node_ *next;
 } list_node;
 typedef struct {
-    list_node *head;
-    list_node *tail;
+    list_node head;
+    list_node tail;
     int size;
 } list;
 

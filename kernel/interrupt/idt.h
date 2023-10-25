@@ -52,6 +52,5 @@ static inline void lidt(uint32_t start, uint32_t size) {
 
     __asm__ __volatile__("lidt %[i]" ::[i] "m"(idt));
 }
-void make_intr_desc(intr_desc *desc, uint8_t attr, intr_handler entry);
-
+void make_intr(int intr_no, uint8_t attr, intr_handler entry);
 #endif
