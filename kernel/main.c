@@ -142,7 +142,7 @@ void test_thread_func2(void *arg) {
     }
 }
 
-void test_process_test_thread(void *page_addr) {
+void test_process1_test_thread(void *page_addr) {
     uint32_t test_page_addr = (uint32_t)page_addr;
     int count = 0;
     *((uint8_t*)test_page_addr) = 2;
@@ -152,12 +152,37 @@ void test_process_test_thread(void *page_addr) {
         yield();
     }
 }
-void test_process() {
+void test_process1() {
     int count = 0;
     uint32_t test_page_addr = (uint32_t)mmap(NULL, 4, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
     ASSERT(test_page_addr >= 0);
     *((uint8_t*)test_page_addr) = 1;
-    clone("test_process_test_thread", TASK_DEFAULT_PRIORITY, test_process_test_thread, (void*)test_page_addr);
+    clone("test_process_test_thread", TASK_DEFAULT_PRIORITY, test_process1_test_thread, (void*)test_page_addr);
+    for (;;) {
+        count++;
+        uint32_t pid = get_pid();
+        yield();
+        execve("execve", NULL, NULL);
+    }
+    unmalloc_thread_mem(test_page_addr, 1);
+}
+
+void test_process2_test_thread(void *page_addr) {
+    uint32_t test_page_addr = (uint32_t)page_addr;
+    int count = 0;
+    *((uint8_t*)test_page_addr) = 4;
+    for (;;) {
+        count++;
+        uint32_t pid = get_pid();
+        yield();
+    }
+}
+void test_process2() {
+    int count = 0;
+    uint32_t test_page_addr = (uint32_t)mmap(NULL, 4, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
+    ASSERT(test_page_addr >= 0);
+    *((uint8_t*)test_page_addr) = 3;
+    clone("test_process_test_thread", TASK_DEFAULT_PRIORITY, test_process2_test_thread, (void*)test_page_addr);
     for (;;) {
         count++;
         uint32_t pid = get_pid();
@@ -172,7 +197,8 @@ void main() {
     enter_main_thread();
     // test2 = thread_start("thread_test2", 10, test_thread_func2, "thread_test2");
     // test1 = thread_start("thread_test1", 15, test_thread_func1, "thread_test1");
-    process_execute(test_process, "test_process");
+    process_execute(test_process1, "test_process1");
+    process_execute(test_process2, "test_process2");
     int count = 0;
     for (;;) {
         count++;

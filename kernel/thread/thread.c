@@ -155,6 +155,7 @@ void enter_main_thread() {
     main_thread = cur_thread();
     init_thread(main_thread, "main", TASK_DEFAULT_PRIORITY);
     main_thread->page_dir = (uint32_t)kernel_page_dir;
+    main_thread->pid = alloc_pid();
     extern vir_addr_alloc_t kernel_vir_addr_alloc;
     memcpy(&main_thread->vir_addr_alloc, &kernel_vir_addr_alloc,
            sizeof(kernel_vir_addr_alloc));
