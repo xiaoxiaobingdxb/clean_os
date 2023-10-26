@@ -60,7 +60,6 @@ void unalloc_pid(uint32_t pid) {
 void init_thread(task_struct *pthread, const char *name, uint32_t priority) {
     memset(pthread, 0, sizeof(*pthread));
     memcpy(pthread->name, name, strlen(name));
-    pthread->pid = alloc_pid();
     if (pthread == main_thread) {
         pthread->status = TASK_RUNNING;
     } else {
@@ -84,9 +83,18 @@ task_struct *cur_thread() {
 
 task_struct *thread_start(const char *name, uint32_t priority, thread_func func,
                           void *func_arg) {
+    task_struct *cur = cur_thread();
     task_struct *thread = (task_struct *)alloc_kernel_mem(1);
     init_thread(thread, name, priority);
+    thread->pid = cur->pid;
     thread_create(thread, func, func_arg);
+    // all threads share virtual memory in a process
+    // so, copy page_dir and vir_addr_alloc
+    thread->page_dir = cur->page_dir;
+    thread->vir_addr_alloc.start = cur->vir_addr_alloc.start;
+    thread->vir_addr_alloc.page_size = cur->vir_addr_alloc.page_size;
+    thread->vir_addr_alloc.bitmap = cur->vir_addr_alloc.bitmap;
+
     pushr(&ready_tasks, &thread->general_tag);
     pushr(&all_tasks, &thread->all_tag);
     return thread;
@@ -185,4 +193,9 @@ void thread_yield() {
     }
     cur->status = TASK_READY;
     schedule();
+}
+
+void thread_clone(const char *name, uint32_t priority, thread_func func,
+                  void *func_arg) {
+    thread_start(name, priority, func, func_arg);
 }

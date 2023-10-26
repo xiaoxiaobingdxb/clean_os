@@ -142,14 +142,29 @@ void test_thread_func2(void *arg) {
     }
 }
 
+void test_process_test_thread(void *page_addr) {
+    uint32_t test_page_addr = (uint32_t)page_addr;
+    int count = 0;
+    *((uint8_t*)test_page_addr) = 2;
+    for (;;) {
+        count++;
+        uint32_t pid = get_pid();
+        yield();
+    }
+}
 void test_process() {
     int count = 0;
+    uint32_t test_page_addr = (uint32_t)mmap(NULL, 4, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
+    ASSERT(test_page_addr >= 0);
+    *((uint8_t*)test_page_addr) = 1;
+    clone("test_process_test_thread", TASK_DEFAULT_PRIORITY, test_process_test_thread, (void*)test_page_addr);
     for (;;) {
         count++;
         uint32_t pid = get_pid();
         yield();
         execve("execve", NULL, NULL);
     }
+    unmalloc_thread_mem(test_page_addr, 1);
 }
 
 void main() {

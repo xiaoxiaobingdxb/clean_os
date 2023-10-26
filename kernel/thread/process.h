@@ -27,10 +27,14 @@ typedef struct {
     uint32_t ss; // process ss selector
 } process_stack;
 
+uint32_t alloc_pid();
+
 void process_execute(void *p_func, const char *name);
 
 uint32_t process_get_pid();
 
 int process_execve(const char *filename, char *const argv[], char *const envp[]);
+
+void *process_mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
 
 #endif

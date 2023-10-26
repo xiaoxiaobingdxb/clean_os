@@ -4,6 +4,7 @@
 #include "../memory/mem.h"
 #include "common/asm/tool.h"
 #include "common/cpu/contrl.h"
+#include "common/tool/math.h"
 #include "thread.h"
 
 extern void intr_exit();
@@ -47,6 +48,7 @@ void init_process_mem(task_struct *thread) {
 void process_execute(void *p_func, const char *name) {
     task_struct *thread = (task_struct *)alloc_kernel_mem(1);
     init_thread(thread, name, TASK_DEFAULT_PRIORITY);
+    thread->pid = alloc_pid();
     thread_create(thread, start_process, p_func);
     init_process_mem(thread);
     pushr(&ready_tasks, &thread->general_tag);
@@ -61,6 +63,19 @@ uint32_t process_get_pid() {
     return cur->pid;
 }
 
-int process_execve(const char *filename, char *const argv[], char *const envp[]) {
+int process_execve(const char *filename, char *const argv[],
+                   char *const envp[]) {
     return 0;
+}
+
+void *process_mmap(void *addr, size_t length, int prot, int flags, int fd,
+                   int offset) {
+    uint32_t ret_vaddr;
+    int page_count = up2(length, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
+    if (addr > 0) {
+        ret_vaddr = malloc_thread_mem_vaddr((uint32_t)addr, page_count);
+    } else {
+        ret_vaddr = malloc_thread_mem(page_count);
+    }
+    return (void*)ret_vaddr;
 }

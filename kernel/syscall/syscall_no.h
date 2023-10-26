@@ -5,6 +5,8 @@ enum syscall_no_ {
     SYSCALL_get_pid,
     SYSCALL_sched_yield,
     SYSCALL_execv,
+    SYSCALL_clone,
+    SYSCALL_mmap,
 };
 
 #endif

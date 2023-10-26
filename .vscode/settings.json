@@ -30,7 +30,8 @@
         "thread": "c",
         "contrl.h": "c",
         "timer.h": "c",
-        "syscall_kernel.h": "c"
+        "syscall_kernel.h": "c",
+        "syscall_no.h": "c"
     }
     
 }

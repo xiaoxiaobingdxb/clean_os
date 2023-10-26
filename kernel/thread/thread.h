@@ -66,5 +66,7 @@ uint32_t malloc_thread_mem_vaddr(uint32_t vaddr, int page_count);
 int unmalloc_thread_mem(uint32_t vaddr, int page_count);
 
 void thread_yield();
+void thread_clone(const char *name, uint32_t priority, thread_func func,
+                          void *func_arg);
 
 #endif
