@@ -41,7 +41,7 @@ gdt用于定义段，gdt的第一项都是8字节，其中40-47共8位表示段�
 在让进程从内核态进入用户态，其实就是像中断iret时用tss中的信息恢复到对应的寄存器中。由于进程首次被调度时是时钟中断触发的，所以刚好可以伪造时钟中断的iret，替换要iret的对应寄存器的值。进程非首次调度时，也是由时钟中断触发的，此时是要调度到另一个进程，switch_to到next的进程时，next任务前一次被调度时刚好是在schedule里，因此当next任务重新被调度回来时，eip刚好也指向了schedule，此时正常回到schedule。此时esp已经转到了next进程的内核栈，再回到中断处理程序的iret，由iret回到next进程的用户态。
 
 为了在进程任务被首次调度时能够iret到用户态，就不能让调度switch_to回到schedule而是去执行kernel_thread函数，在kernel_thread函数中再伪造iret，用此iret进入到用户态。之前thread_start函数开启一个任务指定的func参数是任务的入口函数，如果是个进程，则需要将此func参数指定成能够伪造iret的函数，这里实现start_process函数。
-```
+```c
 typedef struct {
     uint32_t intr_no;
     // all register for popal
@@ -98,6 +98,72 @@ void start_process(void *p_func) {
 }
 ```
 
-上面的start_process中使用了process_struct，这个结构与task_struct非常相似(几乎就是一模一样)。
-## 
+上面的start_process中使用了process_struct，这个结构与task_struct非常相似(几乎就是一模一样)，就是为了让intr_exit恢复数据使用的。在start_process中:
+1. 指定了要恢复的各个段寄存器为用户态的段选择子
+2. 分配了用户态虚拟内存后最后一页(4K)，指定给esp，相当于在用户态下，栈空间就是用户虚拟内存的最后一页
+3. 指定eip为进程的入口函数，表示中断iret会回到进程的入口函数，这与任务的开启一样。
+   
+最后将process_struct赋值给esp，这是伪造iret的关键，相当于替换了内核栈，在iret时会从process_struct中取出对应的字段用于回到用户态。
 
+## 用户态进入内核态——syscall
+首次进入到用户态后开始执行进程的入口函数，但进程代码在用户态可能还是需要进行一些内核态才能进行的操作，或者访问内核态才能访问的数据：
+1. 内核态的数据：比如在用户态进程中申请一块内存，则需要操作虚拟内存分配器(任务的内核栈中)、物理内存分配器(内核内存中)，进程的虚拟内存映射表(内核内存中)
+2. 内核态的操作：比如放弃此时调度，需要将当前任务的状态改为TASK_READY并且调度schedule手动执行一次任务调度。
+
+由于这些操作或访问的数据都需要在内核态中进行，所以在用户态要做这些事肯定是要先切换到内核态。跟内核态切换到用户态一样，用户态切换到内核态一样需要先保存用户态下的所有执行状态，在内核态对应的操作执行完毕后，还需要恢复之前的所有执行状态，所以这依然需要使用到中断来实现。
+
+由于这些操作肯定有特别多种，不可能每种操作都使用一个中断(中断号比较有限)，所以只使用一个中断(0x80)，在这个中断传递参数(eax寄存器)来表示操作类型，同样用传递参数的方式(其他不重要的寄存器，比如ebx、ecx、edx、esi、edi)。这样的中断叫作软中断，需要还是用idt来实现的，但在上面虚拟了一层，相当于用0x80这一个中断作为通用中断处理函数，在这个中断函数中再分出若干个子中断，每个子中断都是一个用户态到内核态的操作，这样每个子中断叫作一个系统调用(syscall)
+
+## syscall的实现
+跟idt一样，系统调用也用一个数组来储存每个syscall_no对应的syscall_handler，并给出一个系统调用初始化的函数，在此函数中提前注册所有的syscall_handler。跟intr_entry_${intr_no}实现几乎一样，由于中断处理函数中要取出syscall_no，调用对应的syscall_handler，因此这里单独写一个intr_entry_syscall的inte_handler，并将之注册到idt中，注册的intr_no就是0x80
+```c
+    .text
+    .extern syscall_table
+    .global intr_entry_syscall
+intr_entry_syscall:
+    push $0
+
+    // store all registers
+    push %ds
+    push %es
+    push %fs
+    push %gs
+    pushal
+
+    push $0x80
+
+    push %edi
+    push %esi
+    push %edx
+    push %ecx
+    push %ebx
+
+    call  *syscall_table(,%eax, 4)
+    add $0x14, %esp // pop ebx, ecx, edx
+    mov $0x8, %ecx
+    mov %eax, 0x0(%esp, %ecx, 4)	
+    jmp intr_exit
+
+typedef void *syscall;
+syscall syscall_table[SYSCALL_SIZE];
+
+void init_syscall() {
+    syscall_register(SYSCALL_get_pid, process_get_pid);
+    syscall_register(SYSCALL_sched_yield, thread_yield);
+    syscall_register(SYSCALL_execv, process_execve);
+    syscall_register(SYSCALL_clone, thread_clone);
+    syscall_register(SYSCALL_mmap, syscall_memory_mmap);
+    make_intr(SYSCALL_INTR_NO, IDT_DESC_ATTR_DPL3, intr_entry_syscall);
+}
+```
+
+在syscal初始化完成后，在用户态代码中就可以用`int ${syscall_no}`来触发0x80中断，执行对应的syscall_handler了。为了让每个syscall都满足其函数调用的形式，每个syscall在用户态再提供一个函数，函数签到与内核态的syscall_handler完成一样。
+```c
+void yield();
+uint32_t get_pid();
+int execve(const char *filename, char *const argv[], char *const envp[]);
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
+void clone(const char *name, uint32_t priority, void* func,
+                          void *func_arg);
+```
+这样在用户态进程代码中即可直接调用这些函数完成系统调用，在用户态下去执行一些只有在内核态下才行执行的特殊操作或者访问数据。
