@@ -31,7 +31,12 @@
         "contrl.h": "c",
         "timer.h": "c",
         "syscall_kernel.h": "c",
-        "syscall_no.h": "c"
+        "syscall_no.h": "c",
+        "__mutex_base": "c",
+        "typeinfo": "c",
+        "__config": "c",
+        "unordered_map": "c",
+        "memory_info.h": "c"
     }
     
 }

@@ -29,7 +29,7 @@ typedef struct {
 
 typedef struct {
     uint32_t *self_kstack;
-    uint32_t pid;
+    uint32_t pid, parent_pid;
     char name[TASK_NAME_LEN];
     task_status status;
     list_node general_tag, all_tag;

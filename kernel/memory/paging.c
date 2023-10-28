@@ -160,6 +160,10 @@ uint32_t alloc_kernel_mem(int page_count) {
     return addrs[0];
 }
 
+int unalloc_kernel_mem(uint32_t vaddr, int page_count) {
+    return unalloc_mem((uint32_t)kernel_page_dir, &kernel_vir_addr_alloc, vaddr, page_count);
+}
+
 int unalloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
                 uint32_t vaddr, uint32_t page_count) {
     uint32_t paddr = vaddr2paddr(page_dir, vaddr);

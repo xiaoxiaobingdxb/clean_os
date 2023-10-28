@@ -67,6 +67,11 @@ int free_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size);
 uint32_t alloc_kernel_mem(int page_count);
 
 /**
+ * @brief free page_count memory from vaddr in kernel
+*/
+int unalloc_kernel_mem(uint32_t vaddr, int page_count);
+
+/**
  * @brief alloc_mem is to alloc memery from vir_addr_alloc and phy_addr_alloc,
  * but not map virtual memory into physical memory
  * @return if success 0 else < 0

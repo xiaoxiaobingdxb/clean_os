@@ -4,6 +4,9 @@
 
 void yield();
 uint32_t get_pid();
+uint32_t fork();
+uint32_t wait(int *status);
+void exit(int status);
 int execve(const char *filename, char *const argv[], char *const envp[]);
 
 #define PROT_NONE 0x0  /* page can not be accessed */
@@ -17,7 +20,6 @@ int execve(const char *filename, char *const argv[], char *const envp[]);
 
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
 
-void clone(const char *name, uint32_t priority, void* func,
-                          void *func_arg);
+void clone(const char *name, uint32_t priority, void *func, void *func_arg);
 
 #endif

@@ -24,6 +24,9 @@ void *syscall_memory_mmap(void *addr, size_t length, int prot, int flags,
 void init_syscall() {
     syscall_register(SYSCALL_get_pid, process_get_pid);
     syscall_register(SYSCALL_sched_yield, thread_yield);
+    syscall_register(SYSCALL_fork, process_fork);
+    syscall_register(SYSCALL_wait, process_wait);
+    syscall_register(SYSCALL_exit, process_exit);
     syscall_register(SYSCALL_execv, process_execve);
     syscall_register(SYSCALL_clone, thread_clone);
     syscall_register(SYSCALL_mmap, syscall_memory_mmap);
