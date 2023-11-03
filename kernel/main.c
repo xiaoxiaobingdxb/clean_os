@@ -37,6 +37,13 @@ extern void test_main();
 
 void idle(void *arg) {
     for (;;) {
+        ps_info pss[10];
+        size_t count = ps(pss, 10);
+        if (count > 0) {
+            for (int i = 0; i < count; i++) {
+                
+            }
+        }
         sti();
         hlt();
     }

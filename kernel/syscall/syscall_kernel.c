@@ -32,5 +32,6 @@ void init_syscall() {
     syscall_register(SYSCALL_clone, process_clone);
     syscall_register(SYSCALL_mmap, syscall_memory_mmap);
     syscall_register(SYSCALL_sysinfo, process_sysinfo);
+    syscall_register(SYSCALL_ps, process_ps);
     make_intr(SYSCALL_INTR_NO, IDT_DESC_ATTR_DPL3, intr_entry_syscall);
 }

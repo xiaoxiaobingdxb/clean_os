@@ -280,6 +280,28 @@ int process_sysinfo(uint32_t pid, sys_info *info) {
     return 0;
 }
 
+bool ps_info_visitor(list_node *node, void *arg) {
+    void** args = (void**)arg;
+    ps_info *ps = (ps_info*)args[0];
+    size_t *count = (size_t*)args[1];
+    size_t *index = (size_t*)args[2];
+    if (*index >= *count) {
+        return false;
+    }
+    task_struct *task = tag2entry(task_struct, all_tag, node);
+    memcpy(&(ps[*index].name), task->name, sizeof(task->name));
+    ps[*index].pid = task->pid;
+    ps[*index].ppid = task->parent_pid;
+    ps[*index].status = task->status;
+    *index = *index + 1;
+}
+int process_ps(ps_info *ps, size_t count) {
+    size_t index = 0;
+    void* args[3] = {(void*)ps, (void*)&count, (void*)&index};
+    foreach(&all_tasks, ps_info_visitor, args);
+    return index;
+}
+
 void clone_thread_exit(int (*func)(void *), void *func_arg) {
     int exit_code = func(func_arg);
     exit(exit_code);

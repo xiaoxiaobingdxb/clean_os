@@ -44,7 +44,8 @@
         "string_view": "c",
         "stdio.h": "c",
         "cstring": "c",
-        "__locale": "c"
+        "__locale": "c",
+        "type.h": "c"
     }
     
 }

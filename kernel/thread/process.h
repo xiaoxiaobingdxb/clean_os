@@ -2,7 +2,7 @@
 #define THREAD_PROCESS_H
 #include "common/types/basic.h"
 #include "../thread/model.h"
-#include "thread.h"
+#include "./type.h"
 
 typedef struct {
     uint32_t intr_no;
@@ -93,6 +93,7 @@ int process_execve(const char *filename, char *const argv[], char *const envp[])
 void *process_mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
 
 int process_sysinfo(pid_t pid, sys_info *info);
+int process_ps(ps_info *ps, size_t count);
 
 pid_t process_clone(int (*func)(void *), void *child_stack, int flags,
                void *func_arg);

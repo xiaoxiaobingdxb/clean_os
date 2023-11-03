@@ -32,5 +32,6 @@ void deprecated_clone(const char *name, uint32_t priority, void *func, void *fun
 
 
 int sysinfo(uint32_t pid, sys_info *info);
+int ps(ps_info* ps, size_t count);
 
 #endif

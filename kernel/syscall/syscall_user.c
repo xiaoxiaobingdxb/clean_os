@@ -97,3 +97,7 @@ void deprecated_clone(const char *name, uint32_t priority, void *func,
 int sysinfo(uint32_t pid, sys_info *info) {
     return syscall2(SYSCALL_sysinfo, pid, info);
 }
+
+int ps(ps_info* ps, size_t count) {
+    return syscall2(SYSCALL_ps, ps, count);
+}
