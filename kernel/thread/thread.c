@@ -87,6 +87,7 @@ task_struct *thread_start(const char *name, uint32_t priority, thread_func func,
     task_struct *thread = (task_struct *)alloc_kernel_mem(1);
     init_thread(thread, name, priority);
     thread->pid = cur->pid;
+    thread->parent_pid = cur->parent_pid;
     thread_create(thread, func, func_arg);
     // all threads share virtual memory in a process
     // so, copy page_dir and vir_addr_alloc
@@ -163,6 +164,7 @@ void enter_main_thread() {
     init_thread(main_thread, "main", TASK_DEFAULT_PRIORITY);
     main_thread->page_dir = (uint32_t)kernel_page_dir;
     main_thread->pid = -1;
+    main_thread->parent_pid = -1;
     memcpy(&main_thread->vir_addr_alloc, &kernel_vir_addr_alloc,
            sizeof(kernel_vir_addr_alloc));
     pushr(&all_tasks, &main_thread->all_tag);
@@ -222,7 +224,8 @@ int unmalloc_thread_mem(uint32_t vaddr, int page_count) {
 
 void set_thread_status(task_struct *task, task_status status,
                        bool need_schedule) {
-    if (task->status != TASK_READY && task->status != TASK_RUNNING && status == TASK_READY) {
+    if (task->status != TASK_READY && task->status != TASK_RUNNING &&
+        status == TASK_READY) {
         pushr(&ready_tasks, &task->general_tag);
     }
     if (status != TASK_READY) {
@@ -256,7 +259,8 @@ void thread_block(task_struct *task, task_status status) {
 bool pid_find_in_all_tasks(list_node *node, void *arg) {
     task_struct **args = (task_struct **)arg;
     task_struct *task = tag2entry(task_struct, all_tag, node);
-    if (args[0] != task && args[0]->page_dir == task->page_dir) {
+    if (args[0] != task && task->status != TASK_HANGING &&
+        task->status != TASK_DIED && args[0]->page_dir == task->page_dir) {
         args[1] = task;
         return false;
     }
@@ -304,8 +308,6 @@ task_struct *thread_child(task_struct *parent, task_status status) {
         ;
     return (task_struct *)args[2];
 }
-
-
 
 void thread_exit(task_struct *task, bool need_schedule) {
     set_thread_status(task, TASK_DIED, need_schedule);

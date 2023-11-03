@@ -30,6 +30,9 @@ void init_process() {
         uint32_t child_pid = wait(&status);
         sysinfo(pid, &info);
         uint32_t cpid = child_pid;
+        if (child_pid == -1) {
+            yield();
+        }
     }
 }
 

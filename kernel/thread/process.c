@@ -63,9 +63,14 @@ void init_process_mem(task_struct *thread) {
 }
 
 void process_execute(void *p_func, const char *name) {
+    task_struct *cur = cur_thread();
+    if (cur == NULL) {
+        return;
+    }
     task_struct *thread = (task_struct *)alloc_kernel_mem(1);
     init_thread(thread, name, TASK_DEFAULT_PRIORITY);
     thread->pid = alloc_pid();
+    thread->parent_pid = cur->pid;
     thread_create(thread, start_process, p_func);
     init_process_mem(thread);
     pushr(&ready_tasks, &thread->general_tag);

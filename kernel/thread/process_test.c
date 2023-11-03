@@ -113,7 +113,6 @@ void test_clone() {
     pid_t cpid = fork();
     if (!cpid) {
         test_clone_p();
-        wait(NULL);
         exit(0);
     }
 }
