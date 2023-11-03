@@ -1,6 +1,8 @@
 #ifndef THREAD_PROCESS_H
 #define THREAD_PROCESS_H
 #include "common/types/basic.h"
+#include "../thread/model.h"
+#include "thread.h"
 
 typedef struct {
     uint32_t intr_no;
@@ -27,14 +29,19 @@ typedef struct {
     uint32_t ss; // process ss selector
 } process_stack;
 
-uint32_t alloc_pid();
+pid_t alloc_pid();
 
 void process_execute(void *p_func, const char *name);
 
 /**
  * @brief get current process pid
 */
-uint32_t process_get_pid();
+pid_t process_get_pid();
+
+/**
+ * @brief get current process parent_pid
+*/
+pid_t process_get_ppid();
 
 /**
  * @brief create a new child process from current process, new process will run at the current code
@@ -49,14 +56,14 @@ uint32_t process_get_pid();
  *         else if == 0 return to child process
  *         else if < 0 fail
 */
-uint32_t process_fork();
+pid_t process_fork();
 
 /**
  * @brief pause current process and wait for a child exit or hanging
  * @param [out] status child process exit status
  * @return child process pid
 */
-uint32_t process_wait(int *status);
+pid_t process_wait(int *status);
 
 /**
  * @brief process exit by itself
@@ -84,5 +91,10 @@ int process_execve(const char *filename, char *const argv[], char *const envp[])
  * @return map return virtual address
 */
 void *process_mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
+
+int process_sysinfo(pid_t pid, sys_info *info);
+
+pid_t process_clone(int (*func)(void *), void *child_stack, int flags,
+               void *func_arg);
 
 #endif

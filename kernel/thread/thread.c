@@ -43,7 +43,7 @@ void init_pid_alloc() {
     pid_alloc.start = 0;
     bitmap_init(&pid_alloc.bitmap);
 }
-uint32_t alloc_pid() {
+pid_t alloc_pid() {
     int bit_idx = bitmap_scan(&pid_alloc.bitmap, 1);
     if (bit_idx < 0) {
         return -1;
@@ -52,7 +52,7 @@ uint32_t alloc_pid() {
     return bit_idx + pid_alloc.start;
 }
 
-void unalloc_pid(uint32_t pid) {
+void unalloc_pid(pid_t pid) {
     int bit_idx = pid - pid_alloc.start;
     bitmap_set(&pid_alloc.bitmap, bit_idx, 0);
 }
@@ -118,7 +118,7 @@ void process_activate(task_struct *thread) {
 
 void schedule() {
     task_struct *cur = cur_thread();
-    if (cur->status == TASK_RUNNING) {
+    if (cur->status == TASK_RUNNING && cur->ticks > 0) {
         cur->elapset_ticks++;
         if (cur->ticks-- > 0) {  // continue run current task
             return;
@@ -136,9 +136,15 @@ void schedule() {
     if (cur == next) {
         return;
     }
-    cur->status = TASK_READY;
+    // only when cur task status is running, push cur into ready task queue
+    if (cur->status == TASK_RUNNING) {
+        cur->status = TASK_READY;
+    }
+    if (cur->status == TASK_READY) {
+        pushr(&ready_tasks, &cur->general_tag);
+    }
     next->status = TASK_RUNNING;
-    pushr(&ready_tasks, &cur->general_tag);
+
     process_activate(next);
     switch_to(cur, next);
 }
@@ -151,23 +157,33 @@ void init_task() {
 }
 
 extern pde_t kernel_page_dir[PDE_CNT] __attribute__((aligned(MEM_PAGE_SIZE)));
+extern vir_addr_alloc_t kernel_vir_addr_alloc;
 void enter_main_thread() {
     main_thread = cur_thread();
     init_thread(main_thread, "main", TASK_DEFAULT_PRIORITY);
     main_thread->page_dir = (uint32_t)kernel_page_dir;
-    main_thread->pid = alloc_pid();
-    extern vir_addr_alloc_t kernel_vir_addr_alloc;
+    main_thread->pid = -1;
     memcpy(&main_thread->vir_addr_alloc, &kernel_vir_addr_alloc,
            sizeof(kernel_vir_addr_alloc));
     pushr(&all_tasks, &main_thread->all_tag);
 }
 
-uint32_t malloc_thread_mem(int page_count) {
-    task_struct *cur = cur_thread();
-    if (cur == NULL) {
-        return 0;
+uint32_t malloc_thread_mem(page_flag pf, int page_count) {
+    uint32_t page_dir;
+    vir_addr_alloc_t *vir_addr_alloc;
+    if (pf == PF_KERNEL) {
+        page_dir = (uint32_t)kernel_page_dir;
+        vir_addr_alloc = &kernel_vir_addr_alloc;
+    } else {
+        task_struct *cur = cur_thread();
+        if (cur == NULL) {
+            return -1;
+        }
+        page_dir = cur->page_dir;
+        vir_addr_alloc = &cur->vir_addr_alloc;
     }
-    return malloc_mem(cur->page_dir, &cur->vir_addr_alloc, page_count);
+
+    return malloc_mem(page_dir, vir_addr_alloc, page_count);
 }
 
 uint32_t malloc_thread_mem_vaddr(uint32_t vaddr, int page_count) {
@@ -175,28 +191,134 @@ uint32_t malloc_thread_mem_vaddr(uint32_t vaddr, int page_count) {
     if (cur == NULL) {
         return 0;
     }
-    return malloc_mem_vaddr(cur->page_dir, &cur->vir_addr_alloc, vaddr,
-                            page_count);
+    uint32_t page_dir;
+    vir_addr_alloc_t *vir_addr_alloc;
+    if (vaddr >= cur->vir_addr_alloc.start) {
+        page_dir = cur->page_dir;
+        vir_addr_alloc = &cur->vir_addr_alloc;
+    } else {
+        page_dir = (uint32_t)kernel_page_dir;
+        vir_addr_alloc = &kernel_vir_addr_alloc;
+    }
+    return malloc_mem_vaddr(page_dir, vir_addr_alloc, vaddr, page_count);
 }
 
 int unmalloc_thread_mem(uint32_t vaddr, int page_count) {
     task_struct *cur = cur_thread();
     if (cur == NULL) {
-        return 0;
+        return -1;
     }
-    return unmalloc_mem(cur->page_dir, &cur->vir_addr_alloc, vaddr, page_count);
+    uint32_t page_dir;
+    vir_addr_alloc_t *vir_addr_alloc;
+    if (vaddr >= cur->vir_addr_alloc.start) {
+        page_dir = cur->page_dir;
+        vir_addr_alloc = &cur->vir_addr_alloc;
+    } else {
+        page_dir = (uint32_t)kernel_page_dir;
+        vir_addr_alloc = &kernel_vir_addr_alloc;
+    }
+    return unmalloc_mem(page_dir, vir_addr_alloc, vaddr, page_count);
 }
 
-void thread_yield() {
+void set_thread_status(task_struct *task, task_status status,
+                       bool need_schedule) {
+    if (task->status != TASK_READY && task->status != TASK_RUNNING && status == TASK_READY) {
+        pushr(&ready_tasks, &task->general_tag);
+    }
+    if (status != TASK_READY) {
+        remove(&ready_tasks, &task->general_tag);
+    }
+    task->status = status;
+    if (need_schedule) {
+        schedule();
+    }
+}
+
+void set_cur_thread_status(task_status status, bool need_schedule) {
     task_struct *cur = cur_thread();
     if (cur == NULL) {
         return;
     }
-    cur->status = TASK_READY;
-    schedule();
+    set_thread_status(cur, status, need_schedule);
 }
+
+void thread_yield() { set_cur_thread_status(TASK_READY, true); }
 
 void thread_clone(const char *name, uint32_t priority, thread_func func,
                   void *func_arg) {
     thread_start(name, priority, func, func_arg);
+}
+
+void thread_block(task_struct *task, task_status status) {
+    set_thread_status(task, status, true);
+}
+
+bool pid_find_in_all_tasks(list_node *node, void *arg) {
+    task_struct **args = (task_struct **)arg;
+    task_struct *task = tag2entry(task_struct, all_tag, node);
+    if (args[0] != task && args[0]->page_dir == task->page_dir) {
+        args[1] = task;
+        return false;
+    }
+    return true;
+}
+
+bool has_other_thread(task_struct *task) {
+    task_struct *args[2] = {task, NULL};
+    foreach (&all_tasks, pid_find_in_all_tasks, (void *)args)
+        ;
+    return args[1] != NULL;
+}
+
+bool pid2task_visitor(list_node *node, void *arg) {
+    task_struct *task = tag2entry(task_struct, all_tag, node);
+    uint32_t *args = (uint32_t *)arg;
+    if (task->pid == args[0]) {
+        args[1] = (uint32_t)task;
+        return false;
+    }
+    return true;
+}
+
+task_struct *pid2task(pid_t pid) {
+    uint32_t arg[2] = {pid, 0};
+    foreach (&all_tasks, pid2task_visitor, (void *)arg)
+        ;
+    return (task_struct *)arg[1];
+}
+
+bool thread_child_visitor(list_node *node, void *arg) {
+    task_struct *task = tag2entry(task_struct, all_tag, node);
+    uint32_t *args = (uint32_t *)arg;
+    if (task->parent_pid == args[0] && ((uint32_t)TASK_UNKNOWN == args[1] ||
+                                        (uint32_t)task->status == args[1])) {
+        args[2] = (uint32_t)task;
+        return false;
+    }
+    return true;
+}
+
+task_struct *thread_child(task_struct *parent, task_status status) {
+    uint32_t args[3] = {parent->pid, (uint32_t)status, 0};
+    foreach (&all_tasks, thread_child_visitor, (void *)args)
+        ;
+    return (task_struct *)args[2];
+}
+
+
+
+void thread_exit(task_struct *task, bool need_schedule) {
+    set_thread_status(task, TASK_DIED, need_schedule);
+    remove(&ready_tasks, &task->general_tag);
+    remove(&all_tasks, &task->all_tag);
+    // if task is not main task
+    if (task != main_thread) {
+        // not find any task in this process, should to release pde
+        if (!has_other_thread(task)) {
+            unmalloc_thread_mem((uint32_t)task->page_dir, 1);
+        }
+        // release thread kernel stack
+        unmalloc_thread_mem((uint32_t)task, 1);
+    }
+    unalloc_pid(task->pid);
 }

@@ -1,10 +1,10 @@
-#include "common/types/basic.h"
-#include "common/interrupt/memory_info.h"
-#include "common/cpu/contrl.h"
-#include "./thread/thread.h"
-#include "./thread/process.h"
-#include "./syscall/syscall_user.h"
 #include "./interrupt/intr.h"
+#include "./syscall/syscall_user.h"
+#include "./thread/process.h"
+#include "./thread/thread.h"
+#include "common/cpu/contrl.h"
+#include "common/interrupt/memory_info.h"
+#include "common/types/basic.h"
 
 extern void test_kernel_init();
 
@@ -16,29 +16,35 @@ void kernel_init(struct boot_params *params) {
     init_task();
 }
 
+extern void test_fork();
+extern void test_clone();
+
 void init_process() {
-    int count = 0;
-    uint32_t child_pid = fork();
-    if (!child_pid) { // is 
-        for (;;) {
-            count += 2;
-            uint32_t pid = get_pid();
-            // int a = 10 / 0;
-            yield();
-        }
-    }
+    // test_fork();
+    sys_info info;
+    pid_t pid = get_pid();
+    sysinfo(pid, &info);
+    test_clone();
     for (;;) {
-        count += 1;
-        uint32_t pid = get_pid();
-        // int a = 10 / 0;
-        yield();
+        int status;
+        uint32_t child_pid = wait(&status);
+        sysinfo(pid, &info);
+        uint32_t cpid = child_pid;
     }
 }
 
 extern void test_main();
 
+void idle(void *arg) {
+    for (;;) {
+        sti();
+        hlt();
+    }
+}
+
 void main() {
     enter_main_thread();
+    thread_start("idle", 1, idle, "");
     // test_main();
     process_execute(init_process, "init");
     int count = 0;

@@ -36,7 +36,15 @@
         "typeinfo": "c",
         "__config": "c",
         "unordered_map": "c",
-        "memory_info.h": "c"
+        "memory_info.h": "c",
+        "__hash_table": "c",
+        "algorithm": "c",
+        "cstdio": "c",
+        "string": "c",
+        "string_view": "c",
+        "stdio.h": "c",
+        "cstring": "c",
+        "__locale": "c"
     }
     
 }

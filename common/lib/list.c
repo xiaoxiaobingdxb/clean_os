@@ -73,7 +73,7 @@ int add(list *l, int index, list_node *node) {
     l->size++;
     return index;
 }
-list_node *remove(list *l, int index) {
+list_node *remove_at(list *l, int index) {
     list_node *p = at(l, index);
     if (p == NULL) {
         return NULL;
@@ -84,6 +84,17 @@ list_node *remove(list *l, int index) {
     p->next = NULL;
     l->size--;
     return p;
+}
+
+void remove(list *l, list_node *node) {
+    int idx = index(l, node);
+    if (idx  >= 0) {
+        l->size--;
+    }
+    if (node->pre != NULL && node->next != NULL) {
+        node->pre->next = node->next;
+        node->next->pre = node->pre;
+    }
 }
 
 list_node *at(list *l, int index) {
@@ -97,12 +108,38 @@ list_node *at(list *l, int index) {
     return p;
 }
 
-bool have(list *l, list_node *node) {
-    for (list_node *p = l->head.next; p != &l->tail && p != NULL;
-         p = p->next) {
+int index(list *l, list_node *node) {
+    int index = -1;
+    for (list_node *p = l->head.next; p != &l->tail && p != NULL; p = p->next) {
+        index++;
         if (p == node) {
-            return true;
+            return index;
         }
     }
-    return false;
+    return -1;
+}
+
+bool have_visitor(list_node *node, void *arg) {
+    list_node *args[2];
+    if (node == args[0]) {
+        args[1] = node;
+        return false;
+    }
+    return true;
+}
+
+bool have2(list *l, list_node *node) {
+    list_node *args[2];
+    args[0] = node;
+    args[1] = NULL;
+    foreach(l, have_visitor, (void *)args);
+    return args[1] != NULL;
+}
+
+void foreach (list *l, foreach_visitor visitor, void *arg) {
+    for (list_node *p = l->head.next; p != &l->tail && p != NULL; p = p->next) {
+        if (!visitor(p, arg)) {
+            break;
+        }
+    }
 }

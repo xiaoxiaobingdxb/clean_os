@@ -50,3 +50,17 @@ void bitmap_set(bitmap_t *btm, uint32_t bit_idx, uint8_t value) {
         btm->bits[byte_idx] &= ~(BITMAP_MASK << bit_odd);
     }
 }
+
+void bitmap_foreach(bitmap_t *btm, uint8_t fast_value, bitmap_foreach_visitor visitor, void *arg) {
+    for (int idx_byte = 0; idx_byte < btm->bytes_len; idx_byte++) {
+        bool has_value = btm->bits[idx_byte] > 0;
+        bool visit = fast_value && has_value || !fast_value && !has_value;
+        if (visit) {
+            for (int idx_bit = idx_byte * 8; idx_bit < idx_byte * 8 + 8; idx_bit++) {
+                if(!visitor(btm, idx_bit, arg)) {
+                    return;
+                }
+            }
+        }
+    }
+}

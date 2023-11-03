@@ -152,8 +152,8 @@ void test_process1() {
         (uint32_t)mmap(NULL, 4, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
     ASSERT(test_page_addr >= 0);
     *((uint8_t *)test_page_addr) = 1;
-    clone("test_process_test_thread", TASK_DEFAULT_PRIORITY,
-          test_process1_test_thread, (void *)test_page_addr);
+    deprecated_clone("test_process_test_thread", TASK_DEFAULT_PRIORITY,
+                     test_process1_test_thread, (void *)test_page_addr);
     for (;;) {
         count++;
         uint32_t pid = get_pid();
@@ -179,8 +179,8 @@ void test_process2() {
         (uint32_t)mmap(NULL, 4, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
     ASSERT(test_page_addr >= 0);
     *((uint8_t *)test_page_addr) = 3;
-    clone("test_process_test_thread", TASK_DEFAULT_PRIORITY,
-          test_process2_test_thread, (void *)test_page_addr);
+    deprecated_clone("test_process_test_thread", TASK_DEFAULT_PRIORITY,
+                     test_process2_test_thread, (void *)test_page_addr);
     for (;;) {
         count++;
         uint32_t pid = get_pid();

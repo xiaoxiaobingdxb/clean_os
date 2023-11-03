@@ -3,6 +3,7 @@
 
 enum syscall_no_ {
     SYSCALL_get_pid,
+    SYSCALL_get_ppid,
     SYSCALL_sched_yield,
     SYSCALL_fork,
     SYSCALL_wait,
@@ -10,6 +11,7 @@ enum syscall_no_ {
     SYSCALL_execv,
     SYSCALL_clone,
     SYSCALL_mmap,
+    SYSCALL_sysinfo,
 };
 
 #endif

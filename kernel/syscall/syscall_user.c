@@ -21,6 +21,15 @@
             : "memory");                 \
         ret_val;                         \
     })
+#define syscall2(syscall_no, arg0, arg1)            \
+    ({                                              \
+        uint32_t ret_val;                           \
+        asm("int $0x80"                             \
+            : "=a"(ret_val)                         \
+            : "a"(syscall_no), "b"(arg0), "c"(arg1) \
+            : "memory");                            \
+        ret_val;                                    \
+    })
 #define syscall3(syscall_no, arg0, arg1, arg2)                 \
     ({                                                         \
         uint32_t ret_val;                                      \
@@ -58,17 +67,15 @@
     })
 void yield() { syscall0(SYSCALL_sched_yield); }
 
-uint32_t get_pid() { return syscall0(SYSCALL_get_pid); }
+pid_t get_pid() { return syscall0(SYSCALL_get_pid); }
 
-uint32_t fork() { 
-    return syscall0(SYSCALL_fork);
-}
+pid_t get_ppid() { return syscall0(SYSCALL_get_ppid); }
 
-uint32_t wait(int *status) { return syscall1(SYSCALL_wait, status); }
+pid_t fork() { return syscall0(SYSCALL_fork); }
 
-void exit(int status) {
-    syscall0(SYSCALL_exit);
-}
+pid_t wait(int *status) { return syscall1(SYSCALL_wait, status); }
+
+void exit(int status) { syscall0(SYSCALL_exit); }
 
 int execve(const char *filename, char *const argv[], char *const envp[]) {
     return syscall3(SYSCALL_execv, filename, argv, envp);
@@ -79,6 +86,14 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, int offset) {
                             offset);
 }
 
-void clone(const char *name, uint32_t priority, void *func, void *func_arg) {
-    syscall4(SYSCALL_clone, name, priority, func, func_arg);
+uint32_t clone(int (*func)(void *), void *child_stack, int flags,
+               void *func_arg) {
+    syscall4(SYSCALL_clone, func, child_stack, flags, func_arg);
+}
+
+void deprecated_clone(const char *name, uint32_t priority, void *func,
+                      void *func_arg) {}
+
+int sysinfo(uint32_t pid, sys_info *info) {
+    return syscall2(SYSCALL_sysinfo, pid, info);
 }

@@ -2,14 +2,17 @@
 
 #include "../memory/config.h"
 #include "../memory/mem.h"
+#include "../syscall/syscall_user.h"
 #include "common/asm/tool.h"
 #include "common/cpu/contrl.h"
+#include "common/lib/stack.h"
+#include "common/lib/stdio.h"
 #include "common/lib/string.h"
 #include "common/tool/math.h"
 #include "thread.h"
 
+extern uint64_t kernel_all_memory, user_all_memory;
 uint32_t user_mode_stack_addr() {
-    extern uint64_t kernel_all_memory, user_all_memory;
     uint32_t vaddr = (uint32_t)(kernel_all_memory + user_all_memory -
                                 MEM_PAGE_SIZE);  // last 4K virtual memory
     return vaddr;
@@ -20,8 +23,10 @@ extern void intr_exit();
 #define EFLAGS_IOPL_0 (0 << 12)  // IOPL0
 #define EFLAGS_MBS (1 << 1)
 #define EFLAGS_IF_1 (1 << 9)
-void start_process(void *p_func) {
-    task_struct *thread = cur_thread();
+/**
+ * switch process from kernel mode into user mode
+ */
+void process_kernel2user(task_struct *thread, void *p_func, void *user_stack) {
     thread->self_kstack += sizeof(thread_stack);
     process_stack *p_stack = (process_stack *)thread->self_kstack;
     p_stack->edi = p_stack->esi = p_stack->ebp = p_stack->esp_dummy = 0;
@@ -34,15 +39,21 @@ void start_process(void *p_func) {
     p_stack->cs = USER_SELECTOR_CS;
     p_stack->eflags = (EFLAGS_IOPL_0 | EFLAGS_MBS | EFLAGS_IF_1);
 
-    // alloc a page for user mode stack, and assign esp to to page end to be
-    // stack top
-    uint32_t vaddr = user_mode_stack_addr();
-    vaddr = malloc_thread_mem_vaddr(vaddr, USER_STACK_SIZE / MEM_PAGE_SIZE);
-    p_stack->esp = (void *)(vaddr + MEM_PAGE_SIZE - 1);
+    p_stack->esp = user_stack;
     p_stack->ss = USER_SELECTOR_SS;
     asm("mov %[v], %%esp\n\t"
         "jmp intr_exit" ::[v] "g"(p_stack)
         : "memory");
+}
+
+void start_process(void *p_func) {
+    task_struct *thread = cur_thread();
+    // alloc a page for user mode stack, and assign esp to to page end to be
+    // stack top
+    uint32_t vaddr = user_mode_stack_addr();
+    vaddr = malloc_thread_mem_vaddr(vaddr, USER_STACK_SIZE / MEM_PAGE_SIZE);
+    void *user_stack = (void *)(vaddr + MEM_PAGE_SIZE);
+    process_kernel2user(thread, p_func, user_stack);
 }
 
 // alloc page_dir for process and init virtual memory bitmap
@@ -61,7 +72,7 @@ void process_execute(void *p_func, const char *name) {
     pushr(&all_tasks, &thread->all_tag);
 }
 
-uint32_t process_get_pid() {
+pid_t process_get_pid() {
     task_struct *cur = cur_thread();
     if (cur == NULL) {
         return -1;
@@ -69,7 +80,15 @@ uint32_t process_get_pid() {
     return cur->pid;
 }
 
-int copy_process(task_struct *dest, task_struct *src) {
+pid_t process_get_ppid() {
+    task_struct *cur = cur_thread();
+    if (cur == NULL) {
+        return -1;
+    }
+    return cur->parent_pid;
+}
+
+int copy_process_mem(task_struct *dest, task_struct *src) {
     // copy kenrel stack
     memcpy(dest, src, MEM_PAGE_SIZE);
     init_process_mem(dest);
@@ -84,7 +103,7 @@ int copy_process(task_struct *dest, task_struct *src) {
 
     // the buff to copy data from src into dest, after copy, should free
     void *buff = (void *)alloc_kernel_mem(1);
-    
+
     // copy all user memory
     for (int idx_byte = 0; idx_byte < src->vir_addr_alloc.bitmap.bytes_len;
          idx_byte++) {
@@ -109,39 +128,121 @@ int copy_process(task_struct *dest, task_struct *src) {
         }
     }
 
-    for (uint32_t idx = 0; idx < src->vir_addr_alloc.bitmap.bytes_len * 8;
-         idx++) {
-        if (bitmap_scan_test(&src->vir_addr_alloc.bitmap,
-                             idx)) {  // had been used
-        }
-    }
-
     unalloc_kernel_mem((uint32_t)buff, 1);
 }
 
-uint32_t process_fork() {
+task_struct *copy_process() {
     task_struct *cur = cur_thread();
     if (!cur) {
-        return -1;
+        return NULL;
     }
     task_struct *thread = (task_struct *)alloc_kernel_mem(1);
     init_thread(thread, cur->name, cur->priority);
-    int err = copy_process(thread, cur);
+    int err = copy_process_mem(thread, cur);
     if (err) {
-        return -1;
+        return NULL;
     }
     thread->parent_pid = cur->pid;
     thread->pid = alloc_pid();
-    const char *name = "fork";
-    memcpy(thread->name, name, strlen(name));
+    return thread;
+}
+
+uint32_t process_fork() {
+    task_struct *thread = copy_process();
+    if (!thread) {
+        return -1;
+    }
+    sprintf(thread->name, "%s_%d", "fork_from", thread->parent_pid);
     pushr(&ready_tasks, &thread->general_tag);
     pushr(&all_tasks, &thread->all_tag);
     return thread->pid;
 }
 
-uint32_t process_wait(int *status) {}
+uint32_t process_wait(int *status) {
+    task_struct *cur = cur_thread();
+    if (!cur) {
+        return -1;
+    }
+    for (;;) {
+        task_struct *child;
+        child = thread_child(cur, TASK_HANGING);
+        // find hanging child, release child kernel stack
+        if (child) {
+            thread_exit(child, false);
+            if (status != NULL) {
+                *status = child->exit_code;
+            }
+            return child->pid;
+        }
+        child = thread_child(cur, TASK_UNKNOWN);
+        if (!child) {  // this process don't have any child, it will return from
+                       // wait
+            return -1;
+        }
+        // if have children, this process will be blocked
+        thread_block(cur, TASK_WAITING);
+    }
+}
 
-void process_exit(int status) {}
+void release_process_memeory(task_struct *cur) {
+    for (int i = pde_index(kernel_all_memory); i < PDE_CNT; i++) {
+        pde_t *pde = (pde_t *)cur->page_dir;
+        pde += i;
+        if (pde->present) {
+            for (int j = 0; j < PTE_CNT; j++) {
+                pte_t *pte = (pte_t *)pe_phy_addr(pde->phy_pt_addr);
+                pte += j;
+                if (pte->present) {
+                    // release a page
+                    uint32_t vaddr = vaddr_by_index(i, j);
+                    unmalloc_thread_mem(vaddr, 1);
+                }
+            }
+            // release pte table
+            unmalloc_thread_mem(pe_phy_addr(pde->phy_pt_addr), 1);
+        }
+    }
+    // release virtual memory alloc bitmap
+    uint32_t bitmap_pg_cnt =
+        up2(cur->vir_addr_alloc.bitmap.bytes_len, MEM_PAGE_SIZE) /
+        MEM_PAGE_SIZE;
+    unmalloc_thread_mem((uint32_t)cur->vir_addr_alloc.bitmap.bits,
+                        bitmap_pg_cnt);
+}
+
+bool rechild2init(list_node *node, void *arg) {
+    task_struct *task = tag2entry(task_struct, all_tag, node);
+    uint32_t *parent_pid = (uint32_t *)arg;
+    if (task->parent_pid == *parent_pid) {
+        task->parent_pid = 0;
+    }
+    return true;
+}
+
+void process_exit(int status) {
+    task_struct *cur = cur_thread();
+    if (cur == NULL) {
+        return;
+    }
+    cur->exit_code = status;
+    if (!has_other_thread(cur)) {
+        // release all user_mode memeory
+        release_process_memeory(cur);
+    }
+    // put all child process to init
+    foreach (&all_tasks, rechild2init, &cur->pid)
+        ;
+    // wake up parent
+    task_struct *parent = pid2task(cur->parent_pid);
+    if (parent->status == TASK_WAITING) {
+        set_thread_status(parent, TASK_READY, false);
+    }
+    if (cur->vfork_done) {
+        complete(cur->vfork_done);
+    }
+    // hang current process
+    set_thread_status(cur, TASK_HANGING, true);
+}
 
 int process_execve(const char *filename, char *const argv[],
                    char *const envp[]) {
@@ -155,7 +256,108 @@ void *process_mmap(void *addr, size_t length, int prot, int flags, int fd,
     if (addr > 0) {
         ret_vaddr = malloc_thread_mem_vaddr((uint32_t)addr, page_count);
     } else {
-        ret_vaddr = malloc_thread_mem(page_count);
+        ret_vaddr = malloc_thread_mem(PF_USER, page_count);
     }
     return (void *)ret_vaddr;
+}
+
+int process_sysinfo(uint32_t pid, sys_info *info) {
+    task_struct *task = pid2task(pid);
+    if (!task) {
+        return -1;
+    }
+    extern phy_addr_alloc_t kernel_phy_addr_alloc;
+    extern vir_addr_alloc_t kernel_vir_addr_alloc;
+    extern phy_addr_alloc_t user_phy_addr_alloc;
+    uint32_t kernel_page_count = count_mem_used(&kernel_vir_addr_alloc);
+    uint32_t user_page_count = count_mem_used(&task->vir_addr_alloc);
+    uint32_t kernel_phy_page_count = count_mem_used(&kernel_phy_addr_alloc);
+    uint32_t user_phy_page_count = count_mem_used(&user_phy_addr_alloc);
+    info->kernel_mem_used = kernel_page_count * MEM_PAGE_SIZE;
+    info->user_mem_used = user_page_count * MEM_PAGE_SIZE;
+    info->kernel_phy_mem_used = kernel_phy_page_count * MEM_PAGE_SIZE;
+    info->user_phy_mem_used = user_phy_page_count * MEM_PAGE_SIZE;
+    return 0;
+}
+
+void clone_thread_exit(int (*func)(void *), void *func_arg) {
+    int exit_code = func(func_arg);
+    exit(exit_code);
+}
+typedef struct {
+    int (*func)(void *);
+    void *func_arg;
+    void *child_stack;
+    int flags;
+} clone_process_args;
+void start_clone_process(void *arg) {
+    task_struct *thread = cur_thread();
+    clone_process_args clone_args;
+    memcpy(&clone_args, arg, sizeof(clone_process_args));
+    unmalloc_thread_mem((uint32_t)arg, 1);
+    if (clone_args.child_stack == NULL) {
+        // alloc a page for user mode stack, and assign esp to to page end to be
+        // stack top
+        uint32_t vaddr = user_mode_stack_addr();
+        vaddr = malloc_thread_mem_vaddr(vaddr, USER_STACK_SIZE / MEM_PAGE_SIZE);
+        void *user_stack = (void *)(vaddr + MEM_PAGE_SIZE);
+        clone_args.child_stack = user_stack;
+    }
+    clone_args.child_stack =
+        stack_push(clone_args.child_stack, clone_args.func_arg);
+    clone_args.child_stack =
+        stack_push(clone_args.child_stack, clone_args.func);
+    clone_args.child_stack =
+        stack_push(clone_args.child_stack, NULL);  // not need return address
+    process_kernel2user(thread, clone_thread_exit, clone_args.child_stack);
+}
+
+uint32_t process_clone(int (*func)(void *), void *child_stack, int flags,
+                       void *func_arg) {
+    task_struct *cur = cur_thread();
+    if (!cur) {
+        return -1;
+    }
+    task_struct *thread = (task_struct *)alloc_kernel_mem(1);
+    if (!thread) {
+        return -1;
+    }
+    init_thread(thread, cur->name, cur->priority);
+    if (flags & CLONE_PARENT) {
+        thread->parent_pid = cur->parent_pid;
+    } else {
+        thread->parent_pid = cur->pid;
+    }
+    thread->pid = alloc_pid();
+    uint32_t args_addr = malloc_thread_mem(
+        PF_KERNEL,
+        1);  // for clone params, will be released after enter into user mode
+    clone_process_args *args = (clone_process_args *)args_addr;
+    memset(args, 0, sizeof(clone_process_args));
+    args->func = func;
+    args->func_arg = func_arg;
+    args->child_stack = child_stack;
+    args->flags = flags;
+    if (flags & CLONE_VM) {
+        // all threads share virtual memory in a process
+        // so, copy page_dir and vir_addr_alloc
+        thread->page_dir = cur->page_dir;
+        memcpy(&thread->vir_addr_alloc, &cur->vir_addr_alloc,
+               sizeof(vir_addr_alloc_t));
+    } else {
+        init_process_mem(thread);
+        args->child_stack = NULL;
+    }
+
+    sprintf(thread->name, "clone_from_%d", cur->pid);
+    thread_create(thread, start_clone_process, (void *)args);
+
+    pushr(&ready_tasks, &thread->general_tag);
+    pushr(&all_tasks, &thread->all_tag);
+    if (flags & CLONE_VFORK) {
+        DECLARE_COMPLETION(vfork_done);
+        thread->vfork_done = &vfork_done;
+        wait_for_completion(&vfork_done);
+    }
+    return thread->pid;
 }

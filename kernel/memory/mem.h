@@ -76,8 +76,8 @@ int unalloc_kernel_mem(uint32_t vaddr, int page_count);
  * but not map virtual memory into physical memory
  * @return if success 0 else < 0
  */
-int alloc_mem(vir_addr_alloc_t *vir_addr_alloc, int page_count,
-               uint32_t addrs[2]);
+// int alloc_mem(vir_addr_alloc_t *vir_addr_alloc, int page_count,
+            //    uint32_t addrs[2]);
 
 /**
  * @brief alloc_mem_page is to alloc continuous virutal memory and alloc discontinuous physical memory
@@ -133,5 +133,7 @@ int unmalloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
                  uint32_t vaddr, int page_count);
 
 void init_user_vir_addr_alloc(vir_addr_alloc_t *alloc);
+
+uint32_t count_mem_used(vir_addr_alloc_t *alloc);
 
 #endif
