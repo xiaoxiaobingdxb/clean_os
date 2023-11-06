@@ -26,7 +26,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
 #define CLONE_VM (1 << 0) // set if vm shared between process
 #define CLONE_PARENT (1 << 1) // set if want the same parent, also create a new process as the cloner' brother
 #define CLONE_VFORK (1 << 2) // set if block current process until child process exit
-uint32_t clone(int (*func)(void*), void* child_stack, int flags, void *func_arg);
+pid_t clone(int (*func)(void*), void* child_stack, int flags, void *func_arg);
 
 void deprecated_clone(const char *name, uint32_t priority, void *func, void *func_arg);
 

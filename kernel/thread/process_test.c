@@ -88,24 +88,27 @@ int test_clone_process1(void *arg) {
     }
     return 1;
 }
-test_clone_args args1, args2, args3;
+test_clone_args args1, args2, args3, args4;
 void test_clone_p() {
     pid_t pid = get_pid();
     pid_t ppid = get_ppid();
-    args1.clone_pid = args2.clone_pid = args3.clone_pid = pid;
-    args1.clone_ppid = args2.clone_ppid = args3.clone_ppid = ppid;
+    args1.clone_pid = args2.clone_pid = args3.clone_pid = args4.clone_pid = pid;
+    args1.clone_ppid = args2.clone_ppid = args3.clone_ppid = args4.clone_ppid = ppid;
     void *test_mem = mmap(NULL, MEM_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
     *((uint32_t*)test_mem) = 1;
     args1.name = "test_clone_vm";
     args1.test_mem = test_mem;
     void *stack = mmap(NULL, MEM_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
     pid_t clone_vm_pid = clone(test_clone_process1, stack, CLONE_VM, (void*)&args1);
-    args2.name = "test_clone_parent";
+    args2.name = "test_clone_vm2";
     args2.test_mem = test_mem;
-    pid_t clone_parent_pid = clone(test_clone_process1, NULL, CLONE_PARENT, (void*)&args2);
-    args3.name ="test_clone_vfork";
+    pid_t clone_vm_pid2 = clone(test_clone_process1, NULL, CLONE_VM, (void*)&args2);
+    args3.name = "test_clone_parent";
     args3.test_mem = test_mem;
-    pid_t clone_vfork_pid = clone(test_clone_process1, NULL, CLONE_VFORK, (void*)&args3);
+    pid_t clone_parent_pid = clone(test_clone_process1, NULL, CLONE_PARENT, (void*)&args3);
+    args4.name ="test_clone_vfork";
+    args4.test_mem = test_mem;
+    pid_t clone_vfork_pid = clone(test_clone_process1, NULL, CLONE_VFORK, (void*)&args4);
     return;
 }
 

@@ -371,9 +371,11 @@ uint32_t process_clone(int (*func)(void *), void *child_stack, int flags,
         thread->page_dir = cur->page_dir;
         memcpy(&thread->vir_addr_alloc, &cur->vir_addr_alloc,
                sizeof(vir_addr_alloc_t));
+        if (args->child_stack == NULL) {
+            args->child_stack =(void*) malloc_thread_mem(PF_USER, 1);
+        }
     } else {
         init_process_mem(thread);
-        args->child_stack = NULL;
     }
 
     sprintf(thread->name, "clone_from_%d", cur->pid);
