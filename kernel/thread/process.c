@@ -219,7 +219,7 @@ bool rechild2init(list_node *node, void *arg) {
     task_struct *task = tag2entry(task_struct, all_tag, node);
     uint32_t *parent_pid = (uint32_t *)arg;
     if (task->parent_pid == *parent_pid) {
-        task->parent_pid = 0;
+        task->parent_pid = INIT_PID;
     }
     return true;
 }

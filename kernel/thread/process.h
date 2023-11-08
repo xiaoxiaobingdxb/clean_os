@@ -4,6 +4,8 @@
 #include "../thread/model.h"
 #include "./type.h"
 
+#define INIT_PID 1
+
 typedef struct {
     uint32_t intr_no;
     // all register for popal

@@ -163,7 +163,7 @@ void enter_main_thread() {
     main_thread = cur_thread();
     init_thread(main_thread, "main", TASK_DEFAULT_PRIORITY);
     main_thread->page_dir = (uint32_t)kernel_page_dir;
-    main_thread->pid = -1;
+    main_thread->pid = alloc_pid();
     main_thread->parent_pid = -1;
     memcpy(&main_thread->vir_addr_alloc, &kernel_vir_addr_alloc,
            sizeof(kernel_vir_addr_alloc));
