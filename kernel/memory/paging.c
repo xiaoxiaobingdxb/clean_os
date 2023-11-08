@@ -485,7 +485,7 @@ uint32_t map_mem(uint32_t page_dir, uint32_t vaddr, uint32_t paddr,
 
 uint32_t map_mem_page(uint32_t page_dir, uint32_t vaddr, uint32_t *paddrs,
                       int page_count, bool override) {
-    if (page_count > sizeof(paddrs) / sizeof(uint32_t)) {
+    if (page_count > MALLOC_MAX_PAGE) {
         return -1;
     }
     vaddr = down2(vaddr, MEM_PAGE_SIZE);

@@ -11,6 +11,7 @@ enum syscall_no_ {
     SYSCALL_execv,
     SYSCALL_clone,
     SYSCALL_mmap,
+    SYSCALL_munmap,
     SYSCALL_sysinfo,
     SYSCALL_ps,
 };

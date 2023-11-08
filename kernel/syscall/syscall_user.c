@@ -86,6 +86,10 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, int offset) {
                             offset);
 }
 
+void munmap(void *addr, size_t length) {
+    syscall2(SYSCALL_munmap, addr, length);
+}
+
 uint32_t clone(int (*func)(void *), void *child_stack, int flags,
                void *func_arg) {
     syscall4(SYSCALL_clone, func, child_stack, flags, func_arg);

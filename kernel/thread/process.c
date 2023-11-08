@@ -263,6 +263,9 @@ void *process_mmap(void *addr, size_t length, int prot, int flags, int fd,
     } else {
         ret_vaddr = malloc_thread_mem(PF_USER, page_count);
     }
+    if (ret_vaddr == -1) {
+        return NULL;
+    }
     return (void *)ret_vaddr;
 }
 

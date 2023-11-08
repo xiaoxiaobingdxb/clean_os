@@ -22,6 +22,10 @@ int execve(const char *filename, char *const argv[], char *const envp[]);
 #define MAP_ANONYMOUS 0x20 /* don't use a file */
 
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
+static inline void *mmap_anonymous(size_t length) {
+    return mmap(NULL, length, PROT_READ|PROT_READ, MAP_ANONYMOUS, 0, 0);
+}
+void munmap(void *addr, size_t size);
 
 #define CLONE_VM (1 << 0) // set if vm shared between process
 #define CLONE_PARENT (1 << 1) // set if want the same parent, also create a new process as the cloner' brother

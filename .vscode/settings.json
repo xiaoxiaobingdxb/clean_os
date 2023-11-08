@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.md": "markdown",
         "basic.h": "c",
         "string.h": "c",
         "mem.h": "c",
@@ -45,7 +46,8 @@
         "stdio.h": "c",
         "cstring": "c",
         "__locale": "c",
-        "type.h": "c"
+        "type.h": "c",
+        "malloc.h": "c"
     }
     
 }

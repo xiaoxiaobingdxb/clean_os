@@ -18,13 +18,15 @@ void kernel_init(struct boot_params *params) {
 
 extern void test_fork();
 extern void test_clone();
+extern void test_malloc_process();
 
 void init_process() {
     // test_fork();
     sys_info info;
     pid_t pid = get_pid();
     sysinfo(pid, &info);
-    test_clone();
+    // test_clone();
+    test_malloc_process();
     for (;;) {
         int status;
         uint32_t child_pid = wait(&status);
