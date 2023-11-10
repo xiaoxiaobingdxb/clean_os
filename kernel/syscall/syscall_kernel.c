@@ -6,6 +6,7 @@
 #include "../thread/thread.h"
 #include "syscall_no.h"
 #include "common/tool/math.h"
+#include "../fs/fs.h"
 
 #define SYSCALL_SIZE 512
 #define SYSCALL_INTR_NO 0x80
@@ -40,5 +41,7 @@ void init_syscall() {
     syscall_register(SYSCALL_munmap, syscall_memory_munmap);
     syscall_register(SYSCALL_sysinfo, process_sysinfo);
     syscall_register(SYSCALL_ps, process_ps);
+    syscall_register(SYSCALL_write, sys_write);
+    syscall_register(SYSCALL_read, sys_read);
     make_intr(SYSCALL_INTR_NO, IDT_DESC_ATTR_DPL3, intr_entry_syscall);
 }

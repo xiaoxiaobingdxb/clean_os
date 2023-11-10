@@ -38,4 +38,10 @@ void deprecated_clone(const char *name, uint32_t priority, void *func, void *fun
 int sysinfo(uint32_t pid, sys_info *info);
 int ps(ps_info* ps, size_t count);
 
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+ssize_t write(int fd, const void *buf, size_t size);
+ssize_t read(int fd, const void *buf, size_t size);
+
 #endif

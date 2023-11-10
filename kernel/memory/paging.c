@@ -331,6 +331,8 @@ void init_paging(uint64_t all_mem) {
         {s_text, e_text, s_text, PTE_U | PTE_W},  // kernel code seg
         {s_data, (void *)(EBDA_START - 1), s_data,
          PTE_U | PTE_W},  // kernel data seg
+        {(void *)EBDA_START, (void *)(kernel_vstart - 1), (void *)EBDA_START,
+         PTE_U | PTE_W},
         {(void *)kernel_vstart, (void *)kernel_vend, (void *)MEM_EXT_START,
          PTE_U | PTE_W},
     };
@@ -579,7 +581,7 @@ void init_user_vir_addr_alloc(vir_addr_alloc_t *alloc) {
 }
 
 bool count_mem_used_visitor(bitmap_t *btm, uint32_t idx_bit, void *arg) {
-    uint32_t *count = (uint32_t*)arg;
+    uint32_t *count = (uint32_t *)arg;
     if (bitmap_scan_test(btm, idx_bit)) {
         *count = *count + 1;
     }

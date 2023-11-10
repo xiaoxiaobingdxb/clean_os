@@ -7,6 +7,7 @@
 #include "common/tool/lib.h"
 #include "common/tool/log.h"
 #include "common/types/basic.h"
+#include "fs/fs.h"
 
 extern void test_kernel_init();
 
@@ -17,11 +18,13 @@ void kernel_init(struct boot_params *params) {
     init_int();
     init_log();
     init_task();
+    init_fs();
 }
 
 extern void test_fork();
 extern void test_clone();
 extern void test_malloc_process();
+extern void test_tty();
 
 void init_process() {
     // test_fork();
@@ -30,7 +33,8 @@ void init_process() {
     sys_info info;
     sysinfo(pid, &info);
     // test_clone();
-    test_malloc_process();
+    // test_malloc_process();
+    test_tty();
     for (;;) {
         int status;
         pid_t child_pid = wait(&status);

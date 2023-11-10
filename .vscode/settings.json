@@ -47,7 +47,15 @@
         "cstring": "c",
         "__locale": "c",
         "type.h": "c",
-        "malloc.h": "c"
+        "malloc.h": "c",
+        "device.h": "c",
+        "console.h": "c",
+        "__split_buffer": "c",
+        "array": "c",
+        "initializer_list": "c",
+        "math.h": "c",
+        "fs.h": "c",
+        "syscall_user.h": "c"
     }
     
 }

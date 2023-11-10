@@ -105,3 +105,10 @@ int sysinfo(uint32_t pid, sys_info *info) {
 int ps(ps_info* ps, size_t count) {
     return syscall2(SYSCALL_ps, ps, count);
 }
+
+ssize_t write(int fd, const void *buf, size_t size) {
+    return syscall3(SYSCALL_write, fd, buf, size);
+}
+ssize_t read(int fd, const void *buf, size_t size) {
+    return syscall3(SYSCALL_read, fd, buf, size);
+}
