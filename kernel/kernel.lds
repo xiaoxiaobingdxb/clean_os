@@ -20,6 +20,8 @@ SECTIONS
     }
     .bss : {
         *(.bss)
+        . = ALIGN(4096);
+        *(.stack)
     }
     PROVIDE(e_data = .);
 

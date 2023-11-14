@@ -15,8 +15,11 @@ enum syscall_no_ {
     SYSCALL_munmap,
     SYSCALL_sysinfo,
     SYSCALL_ps,
+    SYSCALL_open,
     SYSCALL_write,
     SYSCALL_read,
+    SYSCALL_dup,
+    SYSCALL_dup2,
 };
 
 #endif

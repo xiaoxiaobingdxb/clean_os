@@ -8,7 +8,7 @@ device_desc_t *device_desc_table[] = {&dev_tty_desc};
 #define DEVICES_SIZE 128
 device_t devices[DEVICES_SIZE];
 
-int device_open(int major, int minor, void *arg) {
+dev_id_t device_open(int major, int minor, void *arg) {
     device_t *free_dev = NULL;
     for (int i = 0; i < DEVICES_SIZE; i++) {
         device_t *dev = devices + i;
@@ -39,7 +39,7 @@ int device_open(int major, int minor, void *arg) {
     return -1;
 }
 
-bool validate_device(int dev_id) {
+bool validate_device(dev_id_t dev_id) {
     if (dev_id < 0 || dev_id >= sizeof(devices) / sizeof(device_t)) {
         return false;
     }
@@ -48,25 +48,25 @@ bool validate_device(int dev_id) {
     }
     return true;
 }
-ssize_t device_write(int dev_id, uint32_t addr, byte_t *buf, size_t size) {
+ssize_t device_write(dev_id_t dev_id, uint32_t addr, const byte_t *buf, size_t size) {
     if (!validate_device(dev_id)) {
         return -1;
     }
     return (devices + dev_id)->desc->write((devices + dev_id), addr, buf, size);
 }
-ssize_t device_read(int dev_id, uint32_t addr, byte_t *buf, size_t size) {
+ssize_t device_read(dev_id_t dev_id, uint32_t addr, const byte_t *buf, size_t size) {
     if (!validate_device(dev_id)) {
         return -1;
     }
     return (devices + dev_id)->desc->read((devices + dev_id), addr, buf, size);
 }
-int device_control(int dev_id, int cmd, int arg0, int arg1) {
+int device_control(dev_id_t dev_id, int cmd, int arg0, int arg1) {
     if (!validate_device(dev_id)) {
         return -1;
     }
     return (devices + dev_id)->desc->control((devices + dev_id), cmd, arg0, arg1);
 }
-void device_close(int dev_id) {
+void device_close(dev_id_t dev_id) {
     if (!validate_device(dev_id)) {
         return;
     }

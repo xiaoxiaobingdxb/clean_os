@@ -55,7 +55,10 @@
         "initializer_list": "c",
         "math.h": "c",
         "fs.h": "c",
-        "syscall_user.h": "c"
+        "syscall_user.h": "c",
+        "cwchar": "c",
+        "ostream": "c",
+        "functional": "c"
     }
     
 }

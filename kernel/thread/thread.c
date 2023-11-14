@@ -5,6 +5,7 @@
 #include "common/cpu/mem_page.h"
 #include "common/lib/list.h"
 #include "common/lib/string.h"
+#include "common/tool/lib.h"
 #include "process.h"
 #include "timer.h"
 
@@ -58,7 +59,7 @@ void unalloc_pid(pid_t pid) {
 }
 
 void init_thread(task_struct *pthread, const char *name, uint32_t priority) {
-    memset(pthread, 0, sizeof(*pthread));
+    memset(pthread, 0, sizeof(task_struct));
     memcpy(pthread->name, name, strlen(name));
     if (pthread == main_thread) {
         pthread->status = TASK_RUNNING;
@@ -323,4 +324,45 @@ void thread_exit(task_struct *task, bool need_schedule) {
         unmalloc_thread_mem((uint32_t)task, 1);
     }
     unalloc_pid(task->pid);
+}
+
+fd_t task_alloc_fd(file_t *file) {
+    task_struct *cur = cur_thread();
+    ASSERT(cur != NULL);
+    for (int i = 0; i < TASK_FILE_SIZE; i++) {
+        if (cur->file_table[i] == NULL) {
+            cur->file_table[i] = file;
+            return i;
+        }
+    }
+    return -1;
+}
+
+int task_set_file(fd_t fd, file_t *file, bool override) {
+    file_t *old = task_file(fd);
+    if (old && !override) {
+        return -1;
+    }
+    task_struct *cur = cur_thread();
+    ASSERT(cur != NULL);
+    cur->file_table[fd] = file;
+    return 0;
+} 
+
+file_t *task_file(fd_t fd) {
+    task_struct *cur = cur_thread();
+    ASSERT(cur != NULL);
+    if (fd < 0 || fd >= TASK_FILE_SIZE) {
+        return NULL;
+    }
+    return cur->file_table[fd];
+}
+
+void task_free_fd(fd_t fd) {
+    task_struct *cur = cur_thread();
+    ASSERT(cur != NULL);
+    if (fd < 0 || fd >= TASK_FILE_SIZE) {
+        return;
+    }
+    cur->file_table[fd] = NULL;
 }

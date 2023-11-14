@@ -102,8 +102,10 @@ int sysinfo(uint32_t pid, sys_info *info) {
     return syscall2(SYSCALL_sysinfo, pid, info);
 }
 
-int ps(ps_info* ps, size_t count) {
-    return syscall2(SYSCALL_ps, ps, count);
+int ps(ps_info *ps, size_t count) { return syscall2(SYSCALL_ps, ps, count); }
+
+fd_t open(const char *name, int flag) {
+    return syscall2(SYSCALL_open, name, flag);
 }
 
 ssize_t write(int fd, const void *buf, size_t size) {
@@ -111,4 +113,11 @@ ssize_t write(int fd, const void *buf, size_t size) {
 }
 ssize_t read(int fd, const void *buf, size_t size) {
     return syscall3(SYSCALL_read, fd, buf, size);
+}
+
+fd_t dup(fd_t fd) {
+    return syscall1(SYSCALL_dup, fd);
+}
+fd_t dup2(fd_t dst, fd_t source) {
+    return syscall2(SYSCALL_dup2, dst, source);
 }

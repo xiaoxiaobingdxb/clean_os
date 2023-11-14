@@ -14,4 +14,11 @@ static inline uint32_t up2(uint32_t origin, uint32_t bound) {
     return down2(origin, bound) + bound;
 }
 
+static inline uint32_t pow(uint32_t x, uint32_t y) {
+    uint32_t ret = 1;
+    for (uint32_t i = 0; i < y; i++) {
+        ret *= x;
+    }
+    return ret;
+}
 #endif

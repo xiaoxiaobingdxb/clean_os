@@ -6,8 +6,10 @@
 #include "common/types/basic.h"
 #include "./schedule/completion.h"
 #include "./type.h"
+#include "../fs/file.h"
 
 #define TASK_DEFAULT_PRIORITY 31
+#define TASK_FILE_SIZE 128
 
 typedef void thread_func(void *);
 
@@ -34,6 +36,8 @@ typedef struct {
     uint32_t page_dir;
 
     vir_addr_alloc_t vir_addr_alloc;
+
+    file_t* file_table[TASK_FILE_SIZE];
 } task_struct;
 
 extern list ready_tasks;
@@ -77,5 +81,10 @@ bool has_other_thread(task_struct *task);
 
 task_struct *pid2task(pid_t pid);
 task_struct *thread_child(task_struct *parent, task_status status);
+
+fd_t task_alloc_fd(file_t *file);
+int task_set_file(fd_t fd, file_t *file, bool override);
+file_t *task_file(fd_t fd);
+void task_free_fd(fd_t fd);
 
 #endif

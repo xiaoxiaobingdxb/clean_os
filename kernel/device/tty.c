@@ -24,7 +24,7 @@ tty_t *get_tty(device_t *dev) {
     }
     return ttys + dev->minor;
 }
-ssize_t tty_write(device_t *dev, uint32_t addr, byte_t *buf, size_t size) {
+ssize_t tty_write(device_t *dev, uint32_t addr, const byte_t *buf, size_t size) {
     tty_t *tty = get_tty(dev);
     if (!tty) {
         return -1;
@@ -43,7 +43,7 @@ ssize_t tty_write(device_t *dev, uint32_t addr, byte_t *buf, size_t size) {
     }
     return size;
 }
-ssize_t tty_read(device_t *dev, uint32_t addr, byte_t *buf, size_t size) {
+ssize_t tty_read(device_t *dev, uint32_t addr, const byte_t *buf, size_t size) {
     return 0;
 }
 int tty_control(device_t *dev, int cmd, int arg0, int arg1) {

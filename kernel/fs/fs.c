@@ -2,28 +2,169 @@
 
 #include "../device/device.h"
 #include "../syscall/syscall_user.h"
+#include "common/lib/string.h"
 #include "common/tool/lib.h"
 
-int stdio;
-void init_stdio() {
-    stdio = device_open(DEV_TTY, 0, NULL);
-    ASSERT(stdio >= 0);
+#define FS_TABLE_SIZE 10
+fs_desc_t fs_table[FS_TABLE_SIZE];
+fs_ops_t* fs_ops_table[FS_TABLE_SIZE];
+list free_fs, mounted_fs;
+void init_fs_table() {
+    init_list(&free_fs);
+    for (int i = 0; i < FS_TABLE_SIZE; i++) {
+        pushr(&free_fs, &fs_table[i].node);
+    }
+    init_list(&mounted_fs);
+    extern fs_ops_t devfs_ops;
+    memset(&fs_ops_table, 0, sizeof(fs_ops_table));
+    fs_ops_table[FS_DEV] = &devfs_ops;
 }
 void init_fs() {
-    init_stdio();
+    init_fs_table();
+    mount(FS_DEV, "/dev", DEV_TTY, 0);  // mount default /dev
 }
 
+bool mounted_fs_visitor_by_mount_point(list_node *node, void *arg) {
+    void **args = (void **)arg;
+    const char *mount_point = (const char *)args[0];
+    fs_desc_t *fs = tag2entry(fs_desc_t, node, node);
+    if (memcmp(fs->mount_point, mount_point, strlen(mount_point))) {
+        args[1] = fs;
+        return false;
+    }
+    return true;
+}
 
-ssize_t sys_write(int fd, const void *buf, size_t size) {
-    if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
-        return device_write(stdio, 0, (byte_t*)buf, size);
+fs_desc_t *mount(fs_type_t type, const char *mount_point, int dev_major,
+                 int dev_minor) {
+    void *args[2] = {(void *)mount_point, NULL};
+    foreach (&mounted_fs, mounted_fs_visitor_by_mount_point, (void *)args)
+        ;
+    fs_desc_t *fs;
+    if (!args[1]) {  // not found mounted fs, to create a new fs
+        list_node *fs_node = popl(&free_fs);
+        if (!fs_node) {
+            goto mount_fail;
+        }
+        fs = tag2entry(fs_desc_t, node, fs_node);
+        memcpy(fs->mount_point, mount_point, FS_MOUNTP_SIZE);
+        fs_ops_t *ops = fs_ops_table[type];
+        if (!ops) {
+            goto mount_fail;
+        }
+        fs->ops = ops;
+        if (fs->ops->mount(fs, dev_major, dev_minor)) {
+            goto mount_fail;
+        }
+        pushr(&mounted_fs, &fs->node);
+    } else {
+        // had been mounted, fail
+        goto mount_fail;
+    }
+    return fs;
+
+mount_fail:
+    if (fs) {
+        pushr(&free_fs, &fs->node);
+    }
+    return NULL;
+}
+
+/**
+ * @brief /a/b/c -> b/c
+*/
+const char* path_next_child(const char *path) {
+    if (*path == '/') {
+        path++;
+    }
+    while (*path++ != '/');
+    return (const char*)path;
+}
+fd_t sys_open(const char *name, int flag, ...) {
+    void *args[2] = {(void *)name, NULL};
+    foreach (&mounted_fs, mounted_fs_visitor_by_mount_point, (void *)args)
+        ;
+    if (!args[1]) {
+        goto open_fail;
+    }
+    fs_desc_t *fs = (fs_desc_t *)args[1];
+    file_t *file = alloc_file();
+    if (!file) {
+        goto open_fail;
+    }
+    fd_t fd = task_alloc_fd(file);
+    if (fd < 0) {
+        goto open_fail;
+    }
+    file->mode = flag;
+    file->desc = fs;
+    name = path_next_child(name);
+    memcpy(file->name, name, 0);
+    fs->ops->open(fs, name, file);
+    return fd;
+open_fail:
+    if (!file) {
+        free_file(file);
+    }
+    return FILENO_UNKNOWN;
+}
+
+ssize_t sys_write(fd_t fd, const void *buf, size_t size) {
+    file_t *file = task_file(fd);
+    if (!file) {
+        return -1;
+    }
+    return file->desc->ops->write(file, buf, size);
+}
+
+ssize_t sys_read(fd_t fd, const void *buf, size_t size) {
+    file_t *file = task_file(fd);
+    if (!file) {
+        return -1;
+    }
+    return file->desc->ops->read(file, buf, size);
+}
+
+int sys_close(fd_t fd) {
+    file_t *file = task_file(fd);
+    if (!file) {
+        return -1;
+    }
+    ASSERT(file->ref > 0);
+    free_file(file);
+    if (file->ref == 0) {
+        file->desc->ops->close(file);
+    }
+    task_free_fd(fd);
+}
+
+fd_t sys_dup(fd_t fd) {
+    file_t *file =task_file(fd);
+    if (!file) {
+        return -1;
+    }
+    fd_t new_fd = task_alloc_fd(file);
+    if (new_fd >= 0) {
+        ref_file(file);
+        return new_fd;
     }
     return -1;
 }
-
-ssize_t sys_read(int fd, const void *buf, size_t size) {
-    if (fd == STDIN_FILENO) {
-        return device_read(stdio, 0, (byte_t*)buf, size);
+fd_t sys_dup2(fd_t dst, fd_t source) {
+    if (dst == source) {
+        return dst;
     }
-    return -1;
+    file_t *file = task_file(source);
+    if (!file) {
+        return -1;
+    }
+    file_t *old = task_file(dst);
+    if (old) {
+        free_file(file);
+        task_free_fd(dst);
+    }
+    if (task_set_file(dst, file, true) == 0) {
+        ref_file(file);
+        return dst;
+    }
 }

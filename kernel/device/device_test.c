@@ -3,6 +3,10 @@
 #include "common/lib/stdio.h"
 
 void test_tty() {
+    fd_t fd = open("/dev/tty0", 0);
+    dup2(STDIN_FILENO, fd);
+    dup2(STDOUT_FILENO, fd);
+    dup2(STDERR_FILENO, fd);
     char *str = "test_stdout\n";
     ssize_t count =  write(STDOUT_FILENO, str, strlen(str));
     str = "test_stderr\n";

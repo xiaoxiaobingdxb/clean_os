@@ -1,15 +1,16 @@
 #include "string.h"
+#include "../tool/math.h"
 const void *memset(const void *dst, uint8_t c, size_t len) {
     const unsigned char uc = c;
     unsigned char *su;
-    for (su = (unsigned char*)dst; 0 < len; ++su, --len) {
+    for (su = (unsigned char *)dst; 0 < len; ++su, --len) {
         *su = uc;
     }
     return dst;
 }
 
 void memcpy(const void *dst, const void *src, size_t size) {
-    uint8_t *dst_ = (uint8_t*)dst;
+    uint8_t *dst_ = (uint8_t *)dst;
     const uint8_t *src_ = src;
     while (size-- > 0) {
         *dst_++ = *src_++;
@@ -17,11 +18,13 @@ void memcpy(const void *dst, const void *src, size_t size) {
 }
 
 const char *strcat(const char *dst, const char *src) {
-    char *str = (char*)dst;
-    char *src_ = (char*)src;
-    while (*str++);
+    char *str = (char *)dst;
+    char *src_ = (char *)src;
+    while (*str++)
+        ;
     --str;
-    while ((*str++ = *src_++));
+    while ((*str++ = *src_++))
+        ;
     return dst;
 }
 
@@ -38,7 +41,7 @@ int memcmp(const void *a, const void *b, size_t size) {
     return 0;
 }
 
-uint32_t strlen(const char *str) {
+size_t strlen(const char *str) {
     const char *p = str;
     while (*p++)
         ;
@@ -52,6 +55,7 @@ char *strchr(const char *str, const char ch) {
         }
         str++;
     }
+    return NULL;
 }
 char *strrchr(const char *str, const char ch) {
     const char *last = NULL;
@@ -61,10 +65,10 @@ char *strrchr(const char *str, const char ch) {
         }
         str++;
     }
-    return (char*)last;
+    return (char *)last;
 }
 
-uint32_t strchrs(const char* str, const char ch) {
+uint32_t strchrs(const char *str, const char ch) {
     uint32_t ch_cnt = 0;
     const char *p = str;
     while (*p != 0) {
@@ -73,4 +77,30 @@ uint32_t strchrs(const char* str, const char ch) {
         }
     }
     return ch_cnt;
+}
+
+int str2num(const char *str, int *num) {
+    size_t size = strlen(str);
+    if (size < 1) {
+        return -1;
+    }
+    int signe = 1;
+    if (str[0] == '-') {
+        signe = -1;
+        str++;
+        size--;
+    }
+    int ret = 0;
+    for (int i = size - 1; i >= 0; i--) {
+        char ch = str[i];
+        if (ch < '0' || ch > '9') {
+            return -1;
+        }
+        int n = str[i] - '0';
+        ret += n * pow(10, i);
+    }
+    if (num != NULL) {
+        *num = signe * ret;
+    }
+    return 0;
 }
