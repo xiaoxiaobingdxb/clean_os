@@ -1,0 +1,2 @@
+#define LOG_LEVEL ${LOG_LEVEL}
+#define LOG_SHOW_PATH ${LOG_SHOW_PATH}

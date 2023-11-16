@@ -2,6 +2,7 @@
 
 #include "./console.h"
 #include "./device.h"
+#include "keyboard.h"
 
 typedef struct {
     int console_idx;
@@ -16,6 +17,7 @@ int tty_open(device_t *dev) {
     }
     ttys[dev->minor].console_idx = dev->minor;
     init_console(dev->minor);
+    init_keyboard();
     return 0;
 }
 tty_t *get_tty(device_t *dev) {

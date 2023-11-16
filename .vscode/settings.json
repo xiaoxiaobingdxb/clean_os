@@ -58,7 +58,11 @@
         "syscall_user.h": "c",
         "cwchar": "c",
         "ostream": "c",
-        "functional": "c"
+        "functional": "c",
+        "__availability": "c",
+        "charconv": "c",
+        "*.inc": "c",
+        "*.in": "cpp"
     }
     
 }

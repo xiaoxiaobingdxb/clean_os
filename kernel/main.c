@@ -56,7 +56,7 @@ void idle(void *arg) {
 }
 
 void main() {
-    log_printf("enter kernel main\n");
+    log_debug("enter kernel main\n");
     enter_main_thread();
     thread_start("idle", 1, idle, "");
     // test_main();
