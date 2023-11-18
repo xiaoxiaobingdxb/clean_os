@@ -85,13 +85,14 @@ void keyboard_hander(uint32_t intr_no) {
         return;
     }
 }
-bool inited = false;
+
 void wait_fun(int *i) {
     segment_wait(&lock, (pid_t*)i);
 }
 void wakeup_fun(int *i) {
     segment_wakeup(&lock, (pid_t*)i);
 }
+bool inited = false;
 void init_keyboard() {
     if (!inited) {
         register_intr_handler(INTR_NO_KYB, keyboard_hander);

@@ -9,7 +9,6 @@ void init_segment(segment_t *seg, size_t count) {
     init_list(&seg->waiters);
 }
 
-#include "common/tool/log.h"
 void segment_wait(segment_t *seg, pid_t *pid) {
     eflags_t state = enter_intr_protect();
     task_struct *cur = cur_thread();

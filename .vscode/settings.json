@@ -68,7 +68,8 @@
         "segment.h": "c",
         "mutex": "c",
         "log.h": "c",
-        "keyboard.h": "c"
+        "keyboard.h": "c",
+        "ios": "c"
     }
     
 }
