@@ -1,11 +1,11 @@
-#include "../interrupt/intr.h"
-#include "../interrupt/intr_no.h"
+#include "../../interrupt/intr.h"
+#include "../../interrupt/intr_no.h"
 #include "common/cpu/contrl.h"
 #include "common/lib/block_queue.h"
 #include "common/tool/log.h"
 #include "common/types/std.h"
 #include "keyboard_code.h"
-#include "../thread/schedule/segment.h"
+#include "../../thread/schedule/segment.h"
 
 #define KBD_DATA_PORT 0x60
 #define KBD_STATUS_PORT 0x64

@@ -69,7 +69,8 @@
         "mutex": "c",
         "log.h": "c",
         "keyboard.h": "c",
-        "ios": "c"
+        "ios": "c",
+        "file.h": "c"
     }
     
 }

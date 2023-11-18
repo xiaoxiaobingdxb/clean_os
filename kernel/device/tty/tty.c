@@ -1,7 +1,7 @@
 #include "./tty.h"
 
 #include "./console.h"
-#include "./device.h"
+#include "../device.h"
 #include "keyboard.h"
 #include "keyboard_code.h"
 
