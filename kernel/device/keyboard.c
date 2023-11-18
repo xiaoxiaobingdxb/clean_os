@@ -1,15 +1,22 @@
 #include "../interrupt/intr.h"
 #include "../interrupt/intr_no.h"
 #include "common/cpu/contrl.h"
+#include "common/lib/block_queue.h"
+#include "common/tool/log.h"
 #include "common/types/std.h"
 #include "keyboard_code.h"
-#include "common/tool/log.h"
+#include "../thread/schedule/segment.h"
 
 #define KBD_DATA_PORT 0x60
 #define KBD_STATUS_PORT 0x64
 
 bool ext_scancode = false;
 bool ctrl_down, shift_down, alt_down, caps_lock_down;
+
+block_queue kbd_buf;
+char buf[queue_buf_size];
+segment_t lock;
+
 void keyboard_hander(uint32_t intr_no) {
     io_wait();
     uint16_t scan_code = inb(KBD_DATA_PORT);
@@ -51,8 +58,9 @@ void keyboard_hander(uint32_t intr_no) {
         uint8_t idx = (scan_code &= 0x00ff);
         char ch = keymap[idx][shift];
         if (ch) {
-            // log_debug("input ch=%c\n", ch);
-            _log_debug("input ch=%c\n", ch)
+            _log_debug("keyboard input ch=%c\n", ch) int idx = queue_len(&kbd_buf);
+            buf[idx] = ch;
+            queue_put(&kbd_buf, (void*)buf + idx);
             return;
         }
         switch (scan_code) {
@@ -78,9 +86,17 @@ void keyboard_hander(uint32_t intr_no) {
     }
 }
 bool inited = false;
+void wait_fun(int *i) {
+    segment_wait(&lock, (pid_t*)i);
+}
+void wakeup_fun(int *i) {
+    segment_wakeup(&lock, (pid_t*)i);
+}
 void init_keyboard() {
     if (!inited) {
         register_intr_handler(INTR_NO_KYB, keyboard_hander);
+        init_segment(&lock, 0);
+        init_queue(&kbd_buf, wait_fun, wakeup_fun);
         inited = true;
     }
 }

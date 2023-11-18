@@ -24,7 +24,7 @@ void kernel_init(struct boot_params *params) {
 extern void test_fork();
 extern void test_clone();
 extern void test_malloc_process();
-extern void test_tty();
+extern void test_device();
 
 void init_process() {
     // test_fork();
@@ -34,7 +34,7 @@ void init_process() {
     sysinfo(pid, &info);
     // test_clone();
     // test_malloc_process();
-    test_tty();
+    test_device();
     for (;;) {
         int status;
         pid_t child_pid = wait(&status);
@@ -62,10 +62,12 @@ void main() {
     // test_main();
     process_execute(init_process, "init");
     int count = 0;
+    /*
     for (;;) {
         count++;
         uint32_t pid = get_pid();
         // int a = 10 / 0;
         hlt();
-    }
+    }*/
+    exit(0);
 }

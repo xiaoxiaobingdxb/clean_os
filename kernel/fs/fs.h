@@ -21,7 +21,7 @@ typedef struct _fs_ops_t {
     int (*mount)(fs_desc_t *fs, int major, int minor);
     void (*unmount)(fs_desc_t *fs);
     int (*open)(fs_desc_t *fs, const char *path, file_t *file);
-    ssize_t (*read)(file_t *file, const byte_t *buf, size_t size);
+    ssize_t (*read)(file_t *file, byte_t *buf, size_t size);
     ssize_t (*write)(file_t *file, const byte_t *buf, size_t size);
     void (*close)(file_t *file);
     int (*seek)(file_t *file, size_t offset);
@@ -37,7 +37,7 @@ fd_t sys_open(const char *name, int flag, ...);
 
 ssize_t sys_write(fd_t fd, const void *buf, size_t size);
 
-ssize_t sys_read(fd_t fd, const void *buf, size_t size);
+ssize_t sys_read(fd_t fd, void *buf, size_t size);
 
 int sys_close(fd_t fd);
 

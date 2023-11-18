@@ -62,7 +62,13 @@
         "__availability": "c",
         "charconv": "c",
         "*.inc": "c",
-        "*.in": "cpp"
+        "*.in": "cpp",
+        "completion.h": "c",
+        "block_queue.h": "c",
+        "segment.h": "c",
+        "mutex": "c",
+        "log.h": "c",
+        "keyboard.h": "c"
     }
     
 }

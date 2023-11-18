@@ -54,7 +54,7 @@ ssize_t device_write(dev_id_t dev_id, uint32_t addr, const byte_t *buf, size_t s
     }
     return (devices + dev_id)->desc->write((devices + dev_id), addr, buf, size);
 }
-ssize_t device_read(dev_id_t dev_id, uint32_t addr, const byte_t *buf, size_t size) {
+ssize_t device_read(dev_id_t dev_id, uint32_t addr, byte_t *buf, size_t size) {
     if (!validate_device(dev_id)) {
         return -1;
     }

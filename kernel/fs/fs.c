@@ -117,7 +117,7 @@ ssize_t sys_write(fd_t fd, const void *buf, size_t size) {
     return file->desc->ops->write(file, buf, size);
 }
 
-ssize_t sys_read(fd_t fd, const void *buf, size_t size) {
+ssize_t sys_read(fd_t fd, void *buf, size_t size) {
     file_t *file = task_file(fd);
     if (!file) {
         return -1;

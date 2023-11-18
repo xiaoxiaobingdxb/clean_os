@@ -223,11 +223,15 @@ int unmalloc_thread_mem(uint32_t vaddr, int page_count) {
     return unmalloc_mem(page_dir, vir_addr_alloc, vaddr, page_count);
 }
 
-void set_thread_status(task_struct *task, task_status status,
-                       bool need_schedule) {
+void _set_thread_status(task_struct *task, task_status status,
+                        bool need_schedule, bool first) {
     if (task->status != TASK_READY && task->status != TASK_RUNNING &&
         status == TASK_READY) {
-        pushr(&ready_tasks, &task->general_tag);
+        if (first) {
+            pushl(&ready_tasks, &task->general_tag);
+        } else {
+            pushr(&ready_tasks, &task->general_tag);
+        }
     }
     if (status != TASK_READY) {
         remove(&ready_tasks, &task->general_tag);
@@ -236,6 +240,11 @@ void set_thread_status(task_struct *task, task_status status,
     if (need_schedule) {
         schedule();
     }
+}
+
+void set_thread_status(task_struct *task, task_status status,
+                       bool need_schedule) {
+    _set_thread_status(task, status, need_schedule, false);
 }
 
 void set_cur_thread_status(task_status status, bool need_schedule) {
@@ -255,6 +264,10 @@ void thread_clone(const char *name, uint32_t priority, thread_func func,
 
 void thread_block(task_struct *task, task_status status) {
     set_thread_status(task, status, true);
+}
+
+void thread_ready(task_struct *task, bool need_schedule, bool now) {
+    _set_thread_status(task, TASK_READY, need_schedule, now);
 }
 
 bool pid_find_in_all_tasks(list_node *node, void *arg) {
@@ -347,7 +360,7 @@ int task_set_file(fd_t fd, file_t *file, bool override) {
     ASSERT(cur != NULL);
     cur->file_table[fd] = file;
     return 0;
-} 
+}
 
 file_t *task_file(fd_t fd) {
     task_struct *cur = cur_thread();

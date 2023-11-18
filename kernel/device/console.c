@@ -3,6 +3,7 @@
 #include "common/cpu/contrl.h"
 #include "common/lib/string.h"
 #include "common/types/basic.h"
+#include "common/types/std.h"
 
 #define CONSOLE_DISPLAY_ADDR 0xb8000
 #define CONSOLE_CNT 8
@@ -110,6 +111,9 @@ void cursor_down(console_t *console, int n) {
         if (console->cursor_row > 0) {
             console->cursor_row++;
         }
+        if (console->cursor_row >= console->display_rows) {
+            scroll_up(console, 1);
+        }
     }
 }
 
@@ -142,10 +146,29 @@ void console_putchar(int idx, char ch) {
     case '\r':
         cursor_line_head(console);
         break;
+    case '\b':
+        cursor_backward(console, 1);
+        putchar(console, ' ');
+        cursor_backward(console, 1);
+        break;
+    case '\177':
+        putchar(console, ' ');
+        cursor_backward(console, 1);
+        break;
+
     default:
-        putchar(console, ch);
+        if (ch >= ' ' && ch <= '~') {
+            putchar(console, ch);
+        }
         break;
     }
+}
+
+void console_update_cursor_pos(int idx) {
+    if (idx < 0 || idx >= CONSOLE_CNT) {
+        return;
+    }
+    console_t *console = console_buf + idx;
     update_cursor_pos(console);
 }
 
@@ -153,4 +176,20 @@ void console_putstr(int idx, char *str, size_t size) {
     for (int i = 0; i < size; i++) {
         console_putchar(idx, str[i]);
     }
+}
+
+void console_cursor_forward(int idx, int n) {
+    if (idx < 0 || idx >= CONSOLE_CNT) {
+        return;
+    }
+    console_t *console = console_buf + idx;
+    cursor_forward(console, n);
+}
+
+void console_cursor_backward(int idx, int n) {
+    if (idx < 0 || idx >= CONSOLE_CNT) {
+        return;
+    }
+    console_t *console = console_buf + idx;
+    cursor_backward(console, n);
 }

@@ -43,6 +43,9 @@ typedef struct {
     console_color display_fg, display_bg;  // console default color
     display_char_t *display_base;
 } console_t;
+void console_update_cursor_pos(int idx);
 void console_putchar(int idx, char ch);
 void console_putstr(int idx, char *str, size_t size);
+void console_cursor_backward(int idx, int n);
+void console_cursor_forward(int idx, int n);
 #endif

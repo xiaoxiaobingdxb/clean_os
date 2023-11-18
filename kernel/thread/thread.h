@@ -1,12 +1,12 @@
 #ifndef THREAD_THREAD_H
 #define THREAD_THREAD_H
 
+#include "../fs/file.h"
 #include "../memory/mem.h"
-#include "common/lib/list.h"
-#include "common/types/basic.h"
 #include "./schedule/completion.h"
 #include "./type.h"
-#include "../fs/file.h"
+#include "common/lib/list.h"
+#include "common/types/basic.h"
 
 #define TASK_DEFAULT_PRIORITY 31
 #define TASK_FILE_SIZE 128
@@ -27,7 +27,7 @@ typedef struct {
     char name[TASK_NAME_LEN];
     task_status status;
     int exit_code;
-    list_node general_tag, all_tag;
+    list_node general_tag, waiter_tag, all_tag;
     uint32_t priority;
     uint32_t ticks;          // time running at cpu
     uint32_t elapset_ticks;  // time running at cpu all life
@@ -37,7 +37,7 @@ typedef struct {
 
     vir_addr_alloc_t vir_addr_alloc;
 
-    file_t* file_table[TASK_FILE_SIZE];
+    file_t *file_table[TASK_FILE_SIZE];
 } task_struct;
 
 extern list ready_tasks;
@@ -73,6 +73,7 @@ void thread_clone(const char *name, uint32_t priority, thread_func func,
                   void *func_arg);
 
 void thread_block(task_struct *task, task_status status);
+void thread_ready(task_struct *task, bool need_schedule, bool now);
 void thread_exit(task_struct *task, bool need_shedule);
 
 void set_thread_status(task_struct *task, task_status status,

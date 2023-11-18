@@ -30,7 +30,7 @@ int devfs_open(fs_desc_t *fs, const char *path, file_t *file) {
         if (strlen(path) <= len || str2num(path + len, &minor)) {
             minor = 0;
         }
-        dev_id_t dev_id = device_open(type.device_type, minor, NULL);
+        dev_id_t dev_id = device_open(type.device_type, minor, &file->mode);
         if (dev_id < 0) {
             return -1;
         }
@@ -41,7 +41,7 @@ int devfs_open(fs_desc_t *fs, const char *path, file_t *file) {
     }
     return -1;
 }
-ssize_t devfs_read(file_t *file, const byte_t *buf, size_t size) {
+ssize_t devfs_read(file_t *file, byte_t *buf, size_t size) {
     return device_read(file->dev_id, file->pos, buf, size);
 }
 ssize_t devfs_write(file_t *file, const byte_t *buf, size_t size) {

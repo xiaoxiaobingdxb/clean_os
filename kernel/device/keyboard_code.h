@@ -15,7 +15,7 @@
 #define alt_r 0
 #define caps_lock 0
 
-char keymap[][2] = {{0, 0},                   // 0x0
+static char keymap[][2] = {{0, 0},                   // 0x0
                     {esc, esc},               // 0x1
                     {'1', '!'},               // 0x2
                     {'2', '@'},               // 0x3
