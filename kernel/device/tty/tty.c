@@ -18,7 +18,7 @@ typedef struct {
 #define TTY_SIZE 8
 tty_t ttys[TTY_SIZE];
 
-int tty_open(device_t *dev) {
+error tty_open(device_t *dev) {
     if (dev->minor < 0 || dev->minor >= TTY_SIZE) {
         return -1;
     }

@@ -70,7 +70,10 @@
         "log.h": "c",
         "keyboard.h": "c",
         "ios": "c",
-        "file.h": "c"
+        "file.h": "c",
+        "disk.h": "c",
+        "sstream": "c",
+        "lib.h": "c"
     }
     
 }

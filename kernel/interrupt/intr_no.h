@@ -4,5 +4,6 @@
 #define INTR_NO_DIVIDE 0x0
 #define INTR_NO_TIMER 0x20
 #define INTR_NO_KYB 0x21
+#define INTR_NO_DISK 0x2E
 
 #endif

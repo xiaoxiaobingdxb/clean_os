@@ -18,14 +18,14 @@ typedef struct _fs_desc_t {
     struct _fs_ops_t *ops;
 } fs_desc_t;
 typedef struct _fs_ops_t {
-    int (*mount)(fs_desc_t *fs, int major, int minor);
+    error (*mount)(fs_desc_t *fs, int major, int minor);
     void (*unmount)(fs_desc_t *fs);
-    int (*open)(fs_desc_t *fs, const char *path, file_t *file);
+    error (*open)(fs_desc_t *fs, const char *path, file_t *file);
     ssize_t (*read)(file_t *file, byte_t *buf, size_t size);
     ssize_t (*write)(file_t *file, const byte_t *buf, size_t size);
     void (*close)(file_t *file);
-    int (*seek)(file_t *file, size_t offset);
-    int (*ioctl)(file_t *file, int cmd, int arg0, int arg1);
+    error (*seek)(file_t *file, size_t offset);
+    error (*ioctl)(file_t *file, int cmd, int arg0, int arg1);
 } fs_ops_t;
 
 void init_fs();

@@ -4,6 +4,7 @@
 #include "../syscall/syscall_user.h"
 #include "common/lib/string.h"
 #include "common/tool/lib.h"
+#include "../device/disk/disk.h"
 
 #define FS_TABLE_SIZE 10
 fs_desc_t fs_table[FS_TABLE_SIZE];
@@ -21,7 +22,10 @@ void init_fs_table() {
 }
 void init_fs() {
     init_fs_table();
+    init_disk();
+
     mount(FS_DEV, "/dev", DEV_TTY, 0);  // mount default /dev
+    mount(FS_DEV, "/home", DEV_DISK, 0);
 }
 
 bool mounted_fs_visitor_by_mount_point(list_node *node, void *arg) {
@@ -100,7 +104,9 @@ fd_t sys_open(const char *name, int flag, ...) {
     file->desc = fs;
     name = path_next_child(name);
     memcpy(file->name, name, 0);
-    fs->ops->open(fs, name, file);
+    if (fs->ops->open(fs, name, file)) {
+        goto open_fail;
+    }
     return fd;
 open_fail:
     if (!file) {

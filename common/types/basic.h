@@ -1,5 +1,8 @@
 #ifndef TYPES_BASIC_H
 #define TYPES_BASIC_H
+
+#include "std.h"
+
 typedef __SIZE_TYPE__ size_t;
 typedef long signed  int ssize_t;
 typedef unsigned char uint8_t;

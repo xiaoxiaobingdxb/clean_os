@@ -10,21 +10,23 @@ typedef struct _device_t {
     int minor;
     void *arg;
     int open_count;
+    void *data;
 } device_t;
 #define DEVICE_NAME_SIZE 32
 typedef struct _device_desc_t {
     char name[DEVICE_NAME_SIZE];
     int major;
-    int (*open) (struct _device_t*);
+    error (*open) (struct _device_t*);
     ssize_t (*write) (struct _device_t*, uint32_t, const byte_t*, size_t);
     ssize_t (*read) (struct _device_t*, uint32_t, byte_t*, size_t);
-    int (*control) (struct _device_t*, int, int, int);
+    error (*control) (struct _device_t*, int, int, int);
     void (*close) (struct _device_t*);
 } device_desc_t;
 
 typedef enum {
     DEV_UNKNOWN = 0,
-    DEV_TTY
+    DEV_TTY,
+    DEV_DISK,
 } device_type;
 
 dev_id_t device_open(int major, int minor, void *arg);

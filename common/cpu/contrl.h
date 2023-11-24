@@ -49,6 +49,10 @@ static inline uint16_t inw(uint16_t port) {
     return rv;
 }
 
+static inline void outw(uint16_t port, uint16_t v) {
+    __asm__ __volatile__("outw %[v], %[p]" ::[p] "d"(port), [v] "a"(v));
+}
+
 static inline uint32_t read_cr0() {
     uint32_t cr0;
     __asm__ __volatile__("mov %%cr0, %[v]" : [v] "=r"(cr0));

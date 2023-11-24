@@ -12,14 +12,20 @@ devfs_type_t devfs_type_table[] = {{
     .name = "tty",
     .file_type = FILE_TTY,
     .device_type = DEV_TTY,
-}};
+},
+{
+    .name = "disk",
+    .file_type = FILE_FILE,
+    .device_type = DEV_DISK,
+}
+};
 
-int devfs_mount(fs_desc_t *fs, int major, int minor) {
+error devfs_mount(fs_desc_t *fs, int major, int minor) {
     fs->type = FS_DEV;
     return 0;
 }
 void devfs_unmount(fs_desc_t *fs) {}
-int devfs_open(fs_desc_t *fs, const char *path, file_t *file) {
+error devfs_open(fs_desc_t *fs, const char *path, file_t *file) {
     for (int i = 0; i < sizeof(devfs_type_table) / sizeof(devfs_type_t); i++) {
         devfs_type_t type = devfs_type_table[i];
         size_t len = strlen(type.name);
@@ -53,7 +59,7 @@ void devfs_close(file_t *file) {
 int devfs_seek(file_t *file, size_t offset) {
     return -1;
 }
-int devfs_ioctl(file_t *file, int cmd, int arg0, int arg1) {
+error devfs_ioctl(file_t *file, int cmd, int arg0, int arg1) {
     return device_control(file->dev_id, cmd, arg0, arg1);
 }
 

@@ -32,11 +32,20 @@ void test_kbd() {
         get_size = count;
     }
 }
+
+void test_disk() {
+    fd_t fd = open("/home/disk17", 0);
+    byte_t *buf = mmap_anonymous(512);
+    ssize_t read_size = read(fd, buf, 1);
+    log_debug("read disk value=%s\n", buf);
+}
+
 void test_device() {
     pid_t pid = fork();
     if (pid == 0) {
         // test_tty();
-        test_kbd();
+        // test_kbd();
+        test_disk();
     } else {
     }
 }

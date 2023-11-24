@@ -91,13 +91,13 @@ int str2num(const char *str, int *num) {
         size--;
     }
     int ret = 0;
-    for (int i = size - 1; i >= 0; i--) {
+    for (int i = size - 1, j = 0; i >= 0; i--, j++) {
         char ch = str[i];
         if (ch < '0' || ch > '9') {
             return -1;
         }
         int n = str[i] - '0';
-        ret += n * pow(10, i);
+        ret += n * pow(10, j);
     }
     if (num != NULL) {
         *num = signe * ret;
