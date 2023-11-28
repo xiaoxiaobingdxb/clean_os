@@ -9,8 +9,6 @@
 #include "common/lib/string.h"
 #include "common/types/std.h"
 
-#define SECTOR_SIZE 512
-
 // @see https://wiki.osdev.org/ATA_PIO_Mode
 #define PRIMARY_PORT_BASE 0x1F0
 enum {

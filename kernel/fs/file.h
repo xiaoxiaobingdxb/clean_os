@@ -21,8 +21,13 @@ typedef struct {
     char name[FILE_NAME_SIZE];
     file_type type;
     mode_t mode;
-    uint32_t pos;
     int ref;
+
+    uint32_t size;
+
+    uint32_t pos;
+    uint32_t block_start;
+    uint32_t block_cur;
 } file_t;
 
 void init_file_table();

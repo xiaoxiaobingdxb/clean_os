@@ -2,6 +2,7 @@
 #define DISK_DISK_H
 
 #include "common/types/basic.h"
+#define SECTOR_SIZE 512
 
 #define PART_INFO_NAME_SIZE 32
 struct _disk_t;

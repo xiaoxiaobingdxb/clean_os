@@ -9,6 +9,7 @@
 #define FS_MOUNTP_SIZE 512
 typedef enum {
     FS_DEV,
+    FS_FAT16,
 } fs_type_t;
 struct _fs_ops_t;
 typedef struct _fs_desc_t {
@@ -16,6 +17,9 @@ typedef struct _fs_desc_t {
     fs_type_t type;
     list_node node;  // organize by link_list
     struct _fs_ops_t *ops;
+
+    dev_id_t dev_id;
+    void *data;
 } fs_desc_t;
 typedef struct _fs_ops_t {
     error (*mount)(fs_desc_t *fs, int major, int minor);

@@ -16,23 +16,24 @@ void init_fs_table() {
         pushr(&free_fs, &fs_table[i].node);
     }
     init_list(&mounted_fs);
-    extern fs_ops_t devfs_ops;
+    extern fs_ops_t devfs_ops, fat16_ops;
     memset(&fs_ops_table, 0, sizeof(fs_ops_table));
     fs_ops_table[FS_DEV] = &devfs_ops;
+    fs_ops_table[FS_FAT16] = &fat16_ops;
 }
 void init_fs() {
     init_fs_table();
     init_disk();
 
     mount(FS_DEV, "/dev", DEV_TTY, 0);  // mount default /dev
-    mount(FS_DEV, "/home", DEV_DISK, 0);
+    mount(FS_FAT16, "/home", DEV_DISK, 0x11);
 }
 
-bool mounted_fs_visitor_by_mount_point(list_node *node, void *arg) {
+bool mounted_fs_visitor_by_path(list_node *node, void *arg) {
     void **args = (void **)arg;
-    const char *mount_point = (const char *)args[0];
+    const char *path = (const char *)args[0];
     fs_desc_t *fs = tag2entry(fs_desc_t, node, node);
-    if (memcmp(fs->mount_point, mount_point, strlen(mount_point))) {
+    if (!memcmp(fs->mount_point, path, strlen(fs->mount_point))) {
         args[1] = fs;
         return false;
     }
@@ -42,7 +43,7 @@ bool mounted_fs_visitor_by_mount_point(list_node *node, void *arg) {
 fs_desc_t *mount(fs_type_t type, const char *mount_point, int dev_major,
                  int dev_minor) {
     void *args[2] = {(void *)mount_point, NULL};
-    foreach (&mounted_fs, mounted_fs_visitor_by_mount_point, (void *)args)
+    foreach (&mounted_fs, mounted_fs_visitor_by_path, (void *)args)
         ;
     fs_desc_t *fs;
     if (!args[1]) {  // not found mounted fs, to create a new fs
@@ -86,7 +87,7 @@ const char* path_next_child(const char *path) {
 }
 fd_t sys_open(const char *name, int flag, ...) {
     void *args[2] = {(void *)name, NULL};
-    foreach (&mounted_fs, mounted_fs_visitor_by_mount_point, (void *)args)
+    foreach (&mounted_fs, mounted_fs_visitor_by_path, (void *)args)
         ;
     if (!args[1]) {
         goto open_fail;
