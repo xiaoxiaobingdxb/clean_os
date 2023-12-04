@@ -28,7 +28,8 @@ typedef struct _fs_ops_t {
     ssize_t (*read)(file_t *file, byte_t *buf, size_t size);
     ssize_t (*write)(file_t *file, const byte_t *buf, size_t size);
     void (*close)(file_t *file);
-    error (*seek)(file_t *file, size_t offset);
+    off_t (*seek)(file_t *file, off_t offset, int whence);
+    error (*stat)(file_t *file, void *data);
     error (*ioctl)(file_t *file, int cmd, int arg0, int arg1);
 } fs_ops_t;
 
@@ -43,7 +44,13 @@ ssize_t sys_write(fd_t fd, const void *buf, size_t size);
 
 ssize_t sys_read(fd_t fd, void *buf, size_t size);
 
+off_t sys_lseek(fd_t fd, off_t offset, int whence);
+
 int sys_close(fd_t fd);
+
+int sys_stat(const char *name, void *data);
+int sys_fstat(fd_t fd, void *data);
+
 
 fd_t sys_dup(fd_t fd);
 fd_t sys_dup2(fd_t dst, fd_t source);

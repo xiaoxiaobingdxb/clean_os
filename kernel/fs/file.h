@@ -23,6 +23,7 @@ typedef struct {
     mode_t mode;
     int ref;
 
+    uint32_t file_idx;
     uint32_t size;
 
     uint32_t pos;

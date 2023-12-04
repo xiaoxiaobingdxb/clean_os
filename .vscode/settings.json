@@ -73,7 +73,14 @@
         "file.h": "c",
         "disk.h": "c",
         "sstream": "c",
-        "lib.h": "c"
+        "lib.h": "c",
+        "cmos.h": "c",
+        "__tree": "c",
+        "iomanip": "c",
+        "istream": "c",
+        "cstdint": "cpp",
+        "new": "cpp",
+        "datetime.h": "c"
     }
     
 }

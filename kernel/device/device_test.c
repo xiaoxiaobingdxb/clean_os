@@ -1,8 +1,8 @@
+#include "../memory/malloc/malloc.h"
 #include "../syscall/syscall_user.h"
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"
 #include "common/tool/log.h"
-#include "../memory/malloc/malloc.h"
 
 void test_tty() {
     fd_t fd = open("/dev/tty0", 0);
@@ -39,13 +39,70 @@ void test_disk() {
     dup2(STDIN_FILENO, tty);
     dup2(STDOUT_FILENO, tty);
     dup2(STDERR_FILENO, tty);
-
-    fd_t fd = open("/home/test.txt", 0);
-    byte_t *read_buf = malloc(512);
-    ssize_t read_size = read(fd, read_buf, 512);
-    char *out_buf = (char*)malloc(512);
+    // ========================================================>
+    fd_t fd = open("/home/test.txt", O_RDONLY);
+    size_t buf_size = 512;
+    byte_t *read_buf = malloc(buf_size);
+    memset(read_buf, 0, buf_size);
+    ssize_t read_size = read(fd, read_buf, buf_size);
+    char *out_buf = (char *)malloc(buf_size);
+    memset(out_buf, 0, buf_size);
     sprintf(out_buf, "read disk size=%d, value=%s\n", read_size, read_buf);
     write(STDOUT_FILENO, out_buf, strlen(out_buf));
+    stat_t var_stat;
+    if (fstat(fd, &var_stat) == 0) {
+        memset(out_buf, 0, buf_size);
+        uint32_t create_time_h = (uint32_t)(var_stat.create_time.tv_sec >> 32);
+        uint32_t create_time_l = (uint32_t)(var_stat.create_time.tv_sec & 0xffffffff);
+        uint32_t update_time_h = (uint32_t)(var_stat.update_time.tv_sec >> 32);
+        uint32_t update_time_l = (uint32_t)(var_stat.update_time.tv_sec & 0xffffffff);
+        sprintf(out_buf,
+                "file stat "
+                "dev_id=%d,size=%d,block_size=%d,block_count=%d,create_time=%d%d,"
+                "update_time=%d%d\n",
+                var_stat.dev_id, var_stat.size, var_stat.block_size,
+                var_stat.block_count, var_stat.create_time.tv_sec>>32, var_stat.create_time.tv_sec & 0xffffffff,
+                var_stat.update_time.tv_sec >> 32, var_stat.update_time.tv_sec & 0xffffffff);
+        write(STDOUT_FILENO, out_buf, strlen(out_buf));
+    }
+    close(fd);
+    // ========================================================>
+    fd = open("/home/ttest.txt", O_RDWR | O_CREAT);
+
+    // memset(read_buf, 0, sizeof(read_buf));
+    // read_size = read(fd, read_buf, 512);
+    // memset(out_buf, 0, sizeof(out_buf));
+    // sprintf(out_buf, "before write, read disk size=%d, value=%s\n",
+    // read_size, read_buf); write(STDOUT_FILENO, out_buf, strlen(out_buf));
+
+    const char *write_data = "test\n";
+    write(fd, write_data, strlen(write_data));
+
+    lseek(fd, 0, SEEK_SET);
+    memset(read_buf, 0, buf_size);
+    read_size = read(fd, read_buf, buf_size);
+    memset(out_buf, 0, buf_size);
+    sprintf(out_buf, "after write, read disk size=%d, value=%s\n", read_size,
+            read_buf);
+    write(STDOUT_FILENO, out_buf, strlen(out_buf));
+
+    if (fstat(fd, &var_stat) == 0) {
+        memset(out_buf, 0, buf_size);
+        uint32_t create_time_h = (uint32_t)(var_stat.create_time.tv_sec >> 32);
+        uint32_t create_time_l = (uint32_t)(var_stat.create_time.tv_sec & 0xffffffff);
+        uint32_t update_time_h = (uint32_t)(var_stat.update_time.tv_sec >> 32);
+        uint32_t update_time_l = (uint32_t)(var_stat.update_time.tv_sec & 0xffffffff);
+        sprintf(out_buf,
+                "file stat "
+                "dev_id=%d,size=%d,block_size=%d,block_count=%d,create_time=%d%d,"
+                "update_time=%d%d\n",
+                var_stat.dev_id, var_stat.size, var_stat.block_size,
+                var_stat.block_count, var_stat.create_time.tv_sec>>32, var_stat.create_time.tv_sec & 0xffffffff,
+                var_stat.update_time.tv_sec >> 32, var_stat.update_time.tv_sec & 0xffffffff);
+        write(STDOUT_FILENO, out_buf, strlen(out_buf));
+    }
+    close(fd);
+    // ========================================================>
 }
 
 void test_device() {

@@ -108,16 +108,33 @@ fd_t open(const char *name, int flag) {
     return syscall2(SYSCALL_open, name, flag);
 }
 
-ssize_t write(int fd, const void *buf, size_t size) {
+ssize_t write(fd_t fd, const void *buf, size_t size) {
     return syscall3(SYSCALL_write, fd, buf, size);
 }
-ssize_t read(int fd, const void *buf, size_t size) {
+ssize_t read(fd_t fd, const void *buf, size_t size) {
     return syscall3(SYSCALL_read, fd, buf, size);
 }
 
-fd_t dup(fd_t fd) {
-    return syscall1(SYSCALL_dup, fd);
+off_t lseek(fd_t fd, off_t offset, int whence) {
+    switch (whence) {
+    case SEEK_SET:
+    case SEEK_CUR:
+    case SEEK_END:
+        return syscall3(SYSCALL_lseek, fd, offset, whence);
+    default:
+        break;
+    }
+    return EINVAL;
 }
-fd_t dup2(fd_t dst, fd_t source) {
-    return syscall2(SYSCALL_dup2, dst, source);
+
+void close(fd_t fd) { syscall1(SYSCALL_close, fd); }
+
+int stat(const char *name, void *data) {
+    return syscall2(SYSCALL_stat, name, data);
 }
+int fstat(fd_t fd, void *data) {
+    return syscall2(SYSCALL_fstat, fd, data);
+}
+
+fd_t dup(fd_t fd) { return syscall1(SYSCALL_dup, fd); }
+fd_t dup2(fd_t dst, fd_t source) { return syscall2(SYSCALL_dup2, dst, source); }

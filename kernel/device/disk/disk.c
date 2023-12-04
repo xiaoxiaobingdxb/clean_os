@@ -229,13 +229,14 @@ ssize_t disk_write(device_t *dev, uint32_t addr, const byte_t *buf,
     ata_cmd(disk, addr + part->sector_start, size, COMMAND_WRITE);
     ssize_t write_size = -1;
     for (int i = 0; i < size; i++, buf += disk->sector_size * i) {
+        if ((write_size = ata_write(disk, buf, disk->sector_size)) <= 0) {
+            return write_size;
+        }
+        
         segment_wait(&segment, NULL);
         error err = ata_wait(disk);
         if (err) {
             return err;
-        }
-        if ((write_size = ata_write(disk, buf, disk->sector_size)) <= 0) {
-            return write_size;
         }
     }
     return size;

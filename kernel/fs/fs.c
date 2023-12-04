@@ -119,7 +119,7 @@ open_fail:
 ssize_t sys_write(fd_t fd, const void *buf, size_t size) {
     file_t *file = task_file(fd);
     if (!file) {
-        return -1;
+        return EBADF;
     }
     return file->desc->ops->write(file, buf, size);
 }
@@ -127,15 +127,23 @@ ssize_t sys_write(fd_t fd, const void *buf, size_t size) {
 ssize_t sys_read(fd_t fd, void *buf, size_t size) {
     file_t *file = task_file(fd);
     if (!file) {
-        return -1;
+        return EBADF;
     }
     return file->desc->ops->read(file, buf, size);
+}
+
+off_t sys_lseek(fd_t fd, off_t offset, int whence) {
+    file_t *file = task_file(fd);
+    if (!file) {
+        return EBADF;
+    }
+    return file->desc->ops->seek(file, offset, whence);
 }
 
 int sys_close(fd_t fd) {
     file_t *file = task_file(fd);
     if (!file) {
-        return -1;
+        return EBADF;
     }
     ASSERT(file->ref > 0);
     free_file(file);
@@ -143,12 +151,28 @@ int sys_close(fd_t fd) {
         file->desc->ops->close(file);
     }
     task_free_fd(fd);
+    return 0;
+}
+
+int sys_stat(const char *name, void *data) {
+    fd_t fd = open(name, O_RDONLY);
+    int ret = sys_fstat(fd, data);
+    close(fd);
+    return ret;
+}
+
+int sys_fstat(fd_t fd, void *data) {
+    file_t *file = task_file(fd);
+    if (!file) {
+        return EBADF;
+    }
+    return file->desc->ops->stat(file, data);
 }
 
 fd_t sys_dup(fd_t fd) {
     file_t *file =task_file(fd);
     if (!file) {
-        return -1;
+        return EBADF;
     }
     fd_t new_fd = task_alloc_fd(file);
     if (new_fd >= 0) {
@@ -163,7 +187,7 @@ fd_t sys_dup2(fd_t dst, fd_t source) {
     }
     file_t *file = task_file(source);
     if (!file) {
-        return -1;
+        return EBADF;
     }
     file_t *old = task_file(dst);
     if (old) {

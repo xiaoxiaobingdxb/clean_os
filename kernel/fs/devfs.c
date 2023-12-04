@@ -56,7 +56,7 @@ ssize_t devfs_write(file_t *file, const byte_t *buf, size_t size) {
 void devfs_close(file_t *file) {
     device_close(file->dev_id);
 }
-int devfs_seek(file_t *file, size_t offset) {
+off_t devfs_seek(file_t *file, off_t offset, int whence) {
     return -1;
 }
 error devfs_ioctl(file_t *file, int cmd, int arg0, int arg1) {

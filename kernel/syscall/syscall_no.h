@@ -18,6 +18,10 @@ enum syscall_no_ {
     SYSCALL_open,
     SYSCALL_write,
     SYSCALL_read,
+    SYSCALL_lseek,
+    SYSCALL_close,
+    SYSCALL_stat,
+    SYSCALL_fstat,
     SYSCALL_dup,
     SYSCALL_dup2,
 };
