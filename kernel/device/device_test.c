@@ -4,11 +4,14 @@
 #include "common/lib/string.h"
 #include "common/tool/log.h"
 
-void test_tty() {
+void init_tty() {
     fd_t fd = open("/dev/tty0", 0);
     dup2(STDIN_FILENO, fd);
     dup2(STDOUT_FILENO, fd);
     dup2(STDERR_FILENO, fd);
+}
+void test_tty() {
+    init_tty();
     char *str = "test_stdout\n";
     ssize_t count = write(STDOUT_FILENO, str, strlen(str));
     str = "test_stderr\n";
@@ -21,10 +24,7 @@ void test_tty() {
 }
 
 void test_kbd() {
-    fd_t fd = open("/dev/tty0", 1 << 0 | 1 << 10 | 1 << 11 | 1 << 12);
-    dup2(STDIN_FILENO, fd);
-    dup2(STDOUT_FILENO, fd);
-    dup2(STDERR_FILENO, fd);
+    init_tty();
     int buf_size = 32;
     char *buf = mmap_anonymous(buf_size);
     ssize_t count = 0;
@@ -35,10 +35,7 @@ void test_kbd() {
 }
 
 void test_disk() {
-    fd_t tty = open("/dev/tty0", 1 << 0 | 1 << 10 | 1 << 11 | 1 << 12);
-    dup2(STDIN_FILENO, tty);
-    dup2(STDOUT_FILENO, tty);
-    dup2(STDERR_FILENO, tty);
+    init_tty();
     // ========================================================>
     fd_t fd = open("/home/test.txt", O_RDONLY);
     size_t buf_size = 512;
@@ -53,16 +50,21 @@ void test_disk() {
     if (fstat(fd, &var_stat) == 0) {
         memset(out_buf, 0, buf_size);
         uint32_t create_time_h = (uint32_t)(var_stat.create_time.tv_sec >> 32);
-        uint32_t create_time_l = (uint32_t)(var_stat.create_time.tv_sec & 0xffffffff);
+        uint32_t create_time_l =
+            (uint32_t)(var_stat.create_time.tv_sec & 0xffffffff);
         uint32_t update_time_h = (uint32_t)(var_stat.update_time.tv_sec >> 32);
-        uint32_t update_time_l = (uint32_t)(var_stat.update_time.tv_sec & 0xffffffff);
-        sprintf(out_buf,
-                "file stat "
-                "dev_id=%d,size=%d,block_size=%d,block_count=%d,create_time=%d%d,"
-                "update_time=%d%d\n",
-                var_stat.dev_id, var_stat.size, var_stat.block_size,
-                var_stat.block_count, var_stat.create_time.tv_sec>>32, var_stat.create_time.tv_sec & 0xffffffff,
-                var_stat.update_time.tv_sec >> 32, var_stat.update_time.tv_sec & 0xffffffff);
+        uint32_t update_time_l =
+            (uint32_t)(var_stat.update_time.tv_sec & 0xffffffff);
+        sprintf(
+            out_buf,
+            "file stat "
+            "dev_id=%d,size=%d,block_size=%d,block_count=%d,create_time=%d%d,"
+            "update_time=%d%d\n",
+            var_stat.dev_id, var_stat.size, var_stat.block_size,
+            var_stat.block_count, var_stat.create_time.tv_sec >> 32,
+            var_stat.create_time.tv_sec & 0xffffffff,
+            var_stat.update_time.tv_sec >> 32,
+            var_stat.update_time.tv_sec & 0xffffffff);
         write(STDOUT_FILENO, out_buf, strlen(out_buf));
     }
     close(fd);
@@ -89,20 +91,40 @@ void test_disk() {
     if (fstat(fd, &var_stat) == 0) {
         memset(out_buf, 0, buf_size);
         uint32_t create_time_h = (uint32_t)(var_stat.create_time.tv_sec >> 32);
-        uint32_t create_time_l = (uint32_t)(var_stat.create_time.tv_sec & 0xffffffff);
+        uint32_t create_time_l =
+            (uint32_t)(var_stat.create_time.tv_sec & 0xffffffff);
         uint32_t update_time_h = (uint32_t)(var_stat.update_time.tv_sec >> 32);
-        uint32_t update_time_l = (uint32_t)(var_stat.update_time.tv_sec & 0xffffffff);
-        sprintf(out_buf,
-                "file stat "
-                "dev_id=%d,size=%d,block_size=%d,block_count=%d,create_time=%d%d,"
-                "update_time=%d%d\n",
-                var_stat.dev_id, var_stat.size, var_stat.block_size,
-                var_stat.block_count, var_stat.create_time.tv_sec>>32, var_stat.create_time.tv_sec & 0xffffffff,
-                var_stat.update_time.tv_sec >> 32, var_stat.update_time.tv_sec & 0xffffffff);
+        uint32_t update_time_l =
+            (uint32_t)(var_stat.update_time.tv_sec & 0xffffffff);
+        sprintf(
+            out_buf,
+            "file stat "
+            "dev_id=%d,size=%d,block_size=%d,block_count=%d,create_time=%d%d,"
+            "update_time=%d%d\n",
+            var_stat.dev_id, var_stat.size, var_stat.block_size,
+            var_stat.block_count, var_stat.create_time.tv_sec >> 32,
+            var_stat.create_time.tv_sec & 0xffffffff,
+            var_stat.update_time.tv_sec >> 32,
+            var_stat.update_time.tv_sec & 0xffffffff);
         write(STDOUT_FILENO, out_buf, strlen(out_buf));
     }
     close(fd);
     // ========================================================>
+}
+
+void test_dir() {
+    init_tty();
+    fd_t home = open("/home/.", O_RDONLY);
+    dirent_t dirent;
+    size_t buf_size = 512;
+    char *out_buf = (char *)malloc(buf_size);
+    memset(out_buf, 0, buf_size);
+    while (readdir(home, &dirent) == 0) {
+        sprintf(out_buf, "readdir dirent(name=%s, offset=%d, size=%d, type=%d)\n",dirent.name, dirent.offset, dirent.size, dirent.type);
+        write(STDOUT_FILENO, out_buf, strlen(out_buf));
+        memset(out_buf, 0, buf_size);
+    }
+    close(home);
 }
 
 void test_device() {
@@ -110,7 +132,8 @@ void test_device() {
     if (pid == 0) {
         // test_tty();
         // test_kbd();
-        test_disk();
+        // test_disk();
+        test_dir();
     } else {
     }
 }

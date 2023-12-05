@@ -44,10 +44,10 @@
                     "text": "add-symbol-file ./build/kernel/kernel.elf 0x10000",
                     "ignoreFailures": false
                 },
-                {
-                    "text": "-exec-until *0x7c00",
-                    "ignoreFailures": false
-                }
+                // {
+                //     "text": "-exec-until *0x7c00",
+                //     "ignoreFailures": false
+                // }
             ]
         },
     ],

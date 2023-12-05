@@ -22,6 +22,7 @@ enum syscall_no_ {
     SYSCALL_close,
     SYSCALL_stat,
     SYSCALL_fstat,
+    SYSCALL_readdir,
     SYSCALL_dup,
     SYSCALL_dup2,
 };

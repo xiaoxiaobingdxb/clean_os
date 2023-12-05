@@ -2,8 +2,8 @@
 #define SYSCALL_SYSCALL_USER_H
 #include "../thread/model.h"
 #include "../thread/thread.h"
-#include "common/types/basic.h"
 #include "common/tool/datetime.h"
+#include "common/types/basic.h"
 
 void yield();
 pid_t get_pid();
@@ -80,8 +80,16 @@ typedef struct {
     timespec_t create_time;
     timespec_t update_time;
 } stat_t;
-int stat(const char *name, void *data);
-int fstat(fd_t fd, void *data);
+error stat(const char *name, void *data);
+error fstat(fd_t fd, void *data);
+
+typedef struct {
+    off_t offset;
+    uint32_t size;
+    file_type type;
+    char name[64];
+} dirent_t;
+error readdir(fd_t fd, dirent_t *dirent);
 fd_t dup(fd_t fd);
 fd_t dup2(fd_t dst, fd_t source);
 

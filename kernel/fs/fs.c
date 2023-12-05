@@ -140,7 +140,7 @@ off_t sys_lseek(fd_t fd, off_t offset, int whence) {
     return file->desc->ops->seek(file, offset, whence);
 }
 
-int sys_close(fd_t fd) {
+error sys_close(fd_t fd) {
     file_t *file = task_file(fd);
     if (!file) {
         return EBADF;
@@ -154,19 +154,30 @@ int sys_close(fd_t fd) {
     return 0;
 }
 
-int sys_stat(const char *name, void *data) {
+error sys_stat(const char *name, void *data) {
     fd_t fd = open(name, O_RDONLY);
     int ret = sys_fstat(fd, data);
     close(fd);
     return ret;
 }
 
-int sys_fstat(fd_t fd, void *data) {
+error sys_fstat(fd_t fd, void *data) {
     file_t *file = task_file(fd);
     if (!file) {
         return EBADF;
     }
     return file->desc->ops->stat(file, data);
+}
+
+error sys_readdir(fd_t fd, void *dirent) {
+    file_t *file = task_file(fd);
+    if (!file) {
+        return EBADF;
+    }
+    if (!dirent) {
+        return -1;
+    }
+    return file->desc->ops->readdir(file, dirent);
 }
 
 fd_t sys_dup(fd_t fd) {

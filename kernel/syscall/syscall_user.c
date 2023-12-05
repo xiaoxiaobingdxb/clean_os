@@ -129,11 +129,15 @@ off_t lseek(fd_t fd, off_t offset, int whence) {
 
 void close(fd_t fd) { syscall1(SYSCALL_close, fd); }
 
-int stat(const char *name, void *data) {
+error stat(const char *name, void *data) {
     return syscall2(SYSCALL_stat, name, data);
 }
-int fstat(fd_t fd, void *data) {
+error fstat(fd_t fd, void *data) {
     return syscall2(SYSCALL_fstat, fd, data);
+}
+
+error readdir(fd_t fd, dirent_t *dirent) {
+    return syscall2(SYSCALL_readdir, fd, dirent);
 }
 
 fd_t dup(fd_t fd) { return syscall1(SYSCALL_dup, fd); }

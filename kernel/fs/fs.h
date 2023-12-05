@@ -25,12 +25,13 @@ typedef struct _fs_ops_t {
     error (*mount)(fs_desc_t *fs, int major, int minor);
     void (*unmount)(fs_desc_t *fs);
     error (*open)(fs_desc_t *fs, const char *path, file_t *file);
+    error (*ioctl)(file_t *file, int cmd, int arg0, int arg1);
     ssize_t (*read)(file_t *file, byte_t *buf, size_t size);
     ssize_t (*write)(file_t *file, const byte_t *buf, size_t size);
     void (*close)(file_t *file);
     off_t (*seek)(file_t *file, off_t offset, int whence);
     error (*stat)(file_t *file, void *data);
-    error (*ioctl)(file_t *file, int cmd, int arg0, int arg1);
+    error (*readdir)(file_t *dir, void *dirent);
 } fs_ops_t;
 
 void init_fs();
@@ -46,11 +47,11 @@ ssize_t sys_read(fd_t fd, void *buf, size_t size);
 
 off_t sys_lseek(fd_t fd, off_t offset, int whence);
 
-int sys_close(fd_t fd);
+error sys_close(fd_t fd);
 
-int sys_stat(const char *name, void *data);
-int sys_fstat(fd_t fd, void *data);
-
+error sys_stat(const char *name, void *data);
+error sys_fstat(fd_t fd, void *data);
+error sys_readdir(fd_t fd, void *dirent);
 
 fd_t sys_dup(fd_t fd);
 fd_t sys_dup2(fd_t dst, fd_t source);

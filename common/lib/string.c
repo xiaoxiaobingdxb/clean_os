@@ -1,4 +1,5 @@
 #include "string.h"
+
 #include "../tool/math.h"
 const void *memset(const void *dst, uint8_t c, size_t len) {
     const unsigned char uc = c;
@@ -46,6 +47,29 @@ size_t strlen(const char *str) {
     while (*p++)
         ;
     return (p - str - 1);
+}
+
+size_t replace(const char *str, char new, char old) {
+    size_t count = 0;
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] == old) {
+            *((char*)str + i) = new;
+            count++;
+        }
+    }
+    return count;
+}
+
+size_t trim(const char *str) {
+    return replace(str, 0, ' ');
+}
+
+size_t trim_strlen(const char *str) {
+    const char *p = str;
+    while (p > 0 && *p != ' ') {
+        p++;
+    }
+    return p - str;
 }
 
 char *strchr(const char *str, const char ch) {

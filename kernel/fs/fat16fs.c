@@ -82,8 +82,9 @@ typedef union {
 
 #define YEAR_OFFSET 1900
 void datetime2timespec(file_date *date, file_time *time, timespec_t *timespec) {
-    time64_t timeSec = mktime64(date->year + YEAR_OFFSET, date->month, date->day, time->hour,
-                                time->minu, time->second);
+    time64_t timeSec =
+        mktime64(date->year + YEAR_OFFSET, date->month, date->day, time->hour,
+                 time->minu, time->second);
     timespec->tv_sec = timeSec;
 }
 
@@ -245,6 +246,14 @@ void to_sfn(char *buf, const char *path) {
         buf[j] = c - 'a' + 'A';
     }
 }
+
+void from_sfn(char *dst, const char *sfn) {
+    memcpy(dst, sfn, 8);
+    if (trim_strlen(sfn + 8) > 0) {
+        dst[trim_strlen(dst)] = '.';
+        memcpy(dst + trim_strlen(dst), sfn + 8, 3);
+    }
+}
 bool match_file_name(const char *entry_name, const char *path) {
     char sfn[SFN_LEN];
     to_sfn(sfn, path);
@@ -342,22 +351,35 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
     }
     int file_idx = -1;
     dir_entry_t *item = NULL;
-    for (int i = 0; i < bpb->root_entry_count; i++) {
-        dir_entry_t *entry = read_dir_entry(fs->dev_id, bpb, i);
-        if (!entry) {
-            return -2;
-        }
-        file_idx = i;
-        if (entry->name[0] == DIR_END) {
-            break;
-        }
-        if (entry->name[0] == DIR_FREE) {
-            continue;
-        }
-
-        if (match_file_name(entry->name, path)) {
-            item = entry;
-            break;
+    if (strlen(path) == 1 && path[0] == '.') {
+        file_idx = 0;
+        dir_entry_t entry;
+        entry.attr = DIR_ENTRY_ATTR_DIR;
+        entry.file_size = bpb->root_entry_count;
+        memcpy(item->name, ".", 1);
+        item = &entry;
+    } else {
+        for (int i = 0; i < bpb->root_entry_count; i++) {
+            dir_entry_t *entry = read_dir_entry(fs->dev_id, bpb, i);
+            if (!entry) {
+                return -2;
+            }
+            file_idx = i;
+            if (entry->name[0] == DIR_END) {
+                break;
+            }
+            if (entry->name[0] == DIR_FREE) {
+                continue;
+            }
+            if (strlen(entry->name) == 1 && entry->name[0] == '.' &&
+                memcmp(path, fs->mount_point, strlen(fs->mount_point))) {
+                item = entry;
+                break;
+            }
+            if (match_file_name(entry->name, path)) {
+                item = entry;
+                break;
+            }
         }
     }
     if (item) {
@@ -379,7 +401,7 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
         }
         read_file_info(file, &entry, file_idx);
     }
-
+    memcpy(file->name, path, strlen(path));
     return 0;
 }
 typedef enum {
@@ -560,7 +582,8 @@ void fat16_close(file_t *file) {
     get_rtc_time(&time);
     file_time ftime = {
         .hour = time.hour, .minu = time.minute, .second = time.second};
-    file_date date = {.year = time.year - YEAR_OFFSET, .month = time.month, .day = time.day};
+    file_date date = {
+        .year = time.year - YEAR_OFFSET, .month = time.month, .day = time.day};
     entry->access_date.v = date.v;
     entry->write_time.v = ftime.v;
     entry->write_date.v = date.v;
@@ -639,6 +662,46 @@ error fat16_stat(file_t *file, void *data) {
                       &stat->update_time);
     return 0;
 }
+
+error fat16_readdir(file_t *file, void *data) {
+    dirent_t *dirent = (dirent_t *)data;
+    if (file->type != FILE_DIR) {
+        return -1;
+    }
+    if (file->pos >= file->size) {
+        return -1;
+    }
+    bpb_t *bpb = (bpb_t *)file->desc->data;
+    dir_entry_t *entry;
+    while (file->pos < file->size) {
+        entry = read_dir_entry(file->desc->dev_id, bpb, file->pos++);
+        if (!entry) {
+            return -1;
+        }
+        if (entry->name[0] == DIR_END) {
+            entry = NULL;
+            break;
+        }
+        if (entry->name[0] == DIR_FREE) {
+            continue;
+        }
+        break;
+    }
+    if (!entry) {
+        return -1;
+    }
+    memset(dirent->name, 0, sizeof(dirent->name));
+    from_sfn(dirent->name, entry->name);
+    trim(dirent->name);
+    dirent->offset = file->pos;
+    dirent->size = entry->file_size;
+    dirent->type = FILE_FILE;
+    if (entry->attr & DIR_ENTRY_ATTR_DIR) {
+        dirent->type = FILE_DIR;
+    }
+    return 0;
+}
+
 error fat16_ioctl(file_t *file, int cmd, int arg0, int arg1) { return -1; }
 
 fs_ops_t fat16_ops = {
@@ -650,5 +713,6 @@ fs_ops_t fat16_ops = {
     .close = fat16_close,
     .seek = fat16_seek,
     .stat = fat16_stat,
+    .readdir = fat16_readdir,
     .ioctl = fat16_ioctl,
 };
