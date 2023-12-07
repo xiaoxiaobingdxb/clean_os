@@ -2,7 +2,7 @@
 #include "../syscall/syscall_user.h"
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"
-#include "common/tool/log.h"
+#include "../io/std.h"
 
 void init_tty() {
     fd_t fd = open("/dev/tty0", 0);
@@ -127,13 +127,41 @@ void test_dir() {
     close(home);
 }
 
+void test_lfn() {
+    init_tty();
+    const char *file_name = "/home/test_long_long_long.txt";
+    fd_t fd = open(file_name, O_CREAT | O_RDWR);
+    if (fd < 0) {
+        printf("open fail\n");
+       return;
+    }
+    const char *buf = "test\nlong\nlong";
+    ssize_t size = write(fd, buf, strlen(buf));
+    if (size < 0) {
+        printf("write fail\n");
+        return;
+    }
+    lseek(fd, 0, 0);
+    size_t buf_size = 512;
+    char *out_buf = (char*)malloc(buf_size);
+    memset(out_buf, 0, buf_size);
+    size = read(fd, out_buf, buf_size);
+    if (size < 0) {
+        printf("read fail\n");
+        return;
+    }
+    printf("read from %s, value=%s\n", file_name, out_buf);
+    close(fd);
+}
+
 void test_device() {
     pid_t pid = fork();
     if (pid == 0) {
         // test_tty();
         // test_kbd();
         // test_disk();
-        test_dir();
+        // test_dir();
+        test_lfn();
     } else {
     }
 }

@@ -56,7 +56,15 @@ typedef struct {
      bpb->root_entry_count * sizeof(dir_entry_t) / bpb->bytes_per_sector)
 #define sector_idx_to_addr(bpb, idx) (idx * bpb->bytes_per_sector)
 
+#define DIR_ENTRY_ATTR_READ_ONLY 0x01
+#define DIR_ENTRY_ATTR_HIDDEN 0x02
+#define DIR_ENTRY_ATTR_SYSTEM 0x04
+#define DIR_ENTRY_ATTR_VOLUME_ID 0x08
 #define DIR_ENTRY_ATTR_DIR 0x10
+#define DIR_ENTRY_ATTR_ARCHIVE 0x20
+#define DIR_ENTRY_ATTR_LFN                              \
+    (DIR_ENTRY_ATTR_READ_ONLY | DIR_ENTRY_ATTR_HIDDEN | \
+     DIR_ENTRY_ATTR_SYSTEM | DIR_ENTRY_ATTR_VOLUME_ID)
 
 /**
  * @see
@@ -118,7 +126,6 @@ typedef struct {
 
 #define DIR_END 0x0
 #define DIR_FREE 0xE5
-#define DIR_LONG_NAME 0x0F
 
 bool validate_bpb(bpb_t *bpb) {
     if (bpb->fat_count != 2) {
@@ -211,8 +218,7 @@ dir_entry_t *read_dir_entry(dev_id_t dev_id, bpb_t *bpb, int idx) {
     return entry;
 }
 
-error write_dir_entry(dev_id_t dev_id, bpb_t *bpb, dir_entry_t *entry,
-                      int idx) {
+error write_dir_entry(dev_id_t dev_id, bpb_t *bpb, void *entry, int idx) {
     if (idx < 0 || idx >= bpb->root_entry_count) {
         return -1;
     }
@@ -254,11 +260,32 @@ void from_sfn(char *dst, const char *sfn) {
         memcpy(dst + trim_strlen(dst), sfn + 8, 3);
     }
 }
-bool match_file_name(const char *entry_name, const char *path) {
+bool match_sfn(const char *entry_name, const char *path) {
     char sfn[SFN_LEN];
     to_sfn(sfn, path);
     bool match = !memcmp(entry_name, sfn, SFN_LEN);
     return match;
+}
+
+void from_lfn(char *dst, const char *lfn, size_t size) {
+    for (int i = 0, j = 0; j < size;) {
+        if (lfn[j] == 0xff) {
+            break;
+        }
+        dst[i++] = lfn[j++];
+        if (lfn[j]) {
+            dst[i++] = lfn[j++];
+        } else {
+            j++;
+        }
+    }
+}
+
+bool match_lfn(const char *name, const char *path, size_t size) {
+    char buf[128];
+    memset(buf, 0, sizeof(buf));
+    from_lfn(buf, name, size);
+    return !memcmp(buf, path, min(128, strlen(path)));
 }
 
 error set_cluster(dev_id_t dev_id, bpb_t *bpb, fat16_cluster_t cur,
@@ -284,7 +311,8 @@ error set_cluster(dev_id_t dev_id, bpb_t *bpb, fat16_cluster_t cur,
     return 0;
 }
 
-void read_file_info(file_t *file, dir_entry_t *entry, uint32_t file_idx) {
+void read_file_info(file_t *file, dir_entry_t *entry, uint32_t file_idx,
+                    const char *path) {
     file_type type = FILE_FILE;
     if (entry->attr & DIR_ENTRY_ATTR_DIR) {
         type = FILE_DIR;
@@ -297,6 +325,7 @@ void read_file_info(file_t *file, dir_entry_t *entry, uint32_t file_idx) {
     file->type = type;
     file->block_start = file->block_cur =
         entry->cluster_high >> 16 | entry->cluster_low;
+    memcpy(file->name, path, strlen(path));
 }
 
 #include "../device/rtc/cmos.h"
@@ -344,12 +373,171 @@ void free_cluster_chain(dev_id_t dev_id, bpb_t *bpb, fat16_cluster_t cluster) {
     }
 }
 
+/**
+ * @return 1:should, 0:contine, -1:break
+ */
+int should_handle_dir_entry(dir_entry_t *entry) {
+    if (entry->name[0] == DIR_END) {
+        return -1;
+    }
+    if (entry->name[0] == DIR_FREE) {
+        return 0;
+    }
+    if (entry->attr == DIR_ENTRY_ATTR_LFN ||
+        entry->attr == DIR_ENTRY_ATTR_ARCHIVE ||
+        entry->attr == DIR_ENTRY_ATTR_DIR) {
+        return 1;
+    }
+    if (entry->attr & DIR_ENTRY_ATTR_HIDDEN ||
+        entry->attr & DIR_ENTRY_ATTR_VOLUME_ID) {
+        return 0;
+    }
+    return 1;
+}
+
+uint8_t get_check_sum(const char *short_name) {
+    uint8_t check_sum = 0;
+    for (int i = 0; i < 11; i++) {
+        check_sum =
+            ((check_sum & 1) ? 0x80 : 0) + (check_sum >> 1) + short_name[i];
+    }
+    return check_sum;
+}
+
+dir_entry_t *handle_lfn_entry(fs_desc_t *fs, int *idx, const char *path,
+                              bool *handled, char *real_name) {
+    bpb_t *bpb = (bpb_t *)fs->data;
+    const int lfn_count = 9;
+    char lfn_buf[lfn_count * 26];
+    uint8_t check_sums[lfn_count];
+    memset(check_sums, 0, lfn_count * sizeof(int));
+    memset(lfn_buf, 0, sizeof(lfn_buf));
+    int i = *idx;
+    for (int j = 0; j < lfn_count, i < bpb->root_entry_count; j++, i++) {
+        dir_entry_t *get_entry = read_dir_entry(fs->dev_id, bpb, i);
+        if (!get_entry) {
+            break;
+        }
+        if (get_entry->attr != DIR_ENTRY_ATTR_LFN) {
+            break;
+        }
+        long_name_dir_entry_t *lfn_entry = (long_name_dir_entry_t *)get_entry;
+        int order = (lfn_entry->order & 0b11111) - 1;
+        memcpy(lfn_buf + 26 * order, lfn_entry->name0_4, 10);
+        memcpy(lfn_buf + 26 * order + 10, lfn_entry->name5_10, 12);
+        memcpy(lfn_buf + 26 * order + 22, lfn_entry->name11_12, 4);
+        check_sums[i - *idx] = lfn_entry->check_sum;
+        if (lfn_entry->order & 0x1) {
+            break;
+        }
+    }
+    *idx = i + 1;
+    from_lfn(real_name, lfn_buf, sizeof(lfn_buf));
+    if (!path || memcmp(real_name, path, strlen(path)) == 0) {
+        dir_entry_t *entry = read_dir_entry(fs->dev_id, bpb, *idx);
+        if (!entry) {
+            return NULL;
+        }
+        uint8_t check_sum = get_check_sum(entry->name);
+        for (int j = 0; j < lfn_count; j++) {
+            if (check_sums[j] == 0) {
+                break;
+            }
+            if (check_sum != check_sums[j]) {
+                *handled = false;
+                return NULL;
+            }
+        }
+        if (memcmp(real_name, path, strlen(path))) {
+            return NULL;
+        }
+        *handled = true;
+        return entry;
+    }
+    *handled = false;
+    return NULL;
+}
+
+dir_entry_t *handle_dir_entry(fs_desc_t *fs, int *idx, const char *path,
+                              bool *handled, char *real_name) {
+    bpb_t *bpb = (bpb_t *)fs->data;
+    if (!bpb) {
+        return NULL;
+    }
+    dir_entry_t *entry = read_dir_entry(fs->dev_id, bpb, *idx);
+    if (!entry) {
+        return NULL;
+    }
+    int should_handle = should_handle_dir_entry(entry);
+    if (should_handle < 0) {
+        *handled = true;
+        return NULL;
+    } else if (should_handle == 0) {
+        *handled = false;
+        return NULL;
+    }
+
+    long_name_dir_entry_t *lfn_entry = (long_name_dir_entry_t *)entry;
+    if (entry->attr == DIR_ENTRY_ATTR_LFN &&
+        lfn_entry->order & 0x40) {  // lfn the last entry
+        return handle_lfn_entry(fs, idx, path, handled, real_name);
+    }
+    from_sfn(real_name, entry->name);
+    if (!path) {
+        *handled = true;
+        return entry;
+    }
+    if (match_sfn(entry->name, path)) {
+        *handled = true;
+        return entry;
+    }
+    *handled = true;
+    return NULL;
+}
+
+void ascii2unicode(const char *ascii, char *unicode, size_t size) {
+    for (int i = 0; i < size; i++) {
+        unicode[i * 2] = ascii[i];
+        unicode[i * 2 + 1] = 0;
+    }
+}
+
+error create_lfn(file_t *file, dir_entry_t *entry, const char *name,
+                 int *file_idx) {
+    int lfn_entry_count = up2(strlen(name), 13) / 13;
+    if (lfn_entry_count > 9) {
+        return -1;
+    }
+    entry->name[6] = '~';
+    entry->name[7] = lfn_entry_count + '0';
+    uint8_t check_sum = get_check_sum(entry->name);
+    for (int i = lfn_entry_count - 1; i >= 0; i--) {
+        long_name_dir_entry_t lfn;
+        lfn.order = i + 1;
+        if (i == lfn_entry_count - 1) {
+            lfn.order |= 0x40;
+        }
+        lfn.attr = DIR_ENTRY_ATTR_LFN;
+        lfn.type = 0;
+        lfn.reserved = 0;
+        lfn.check_sum = check_sum;
+        ascii2unicode(name + i * 13, lfn.name0_4, 5);
+        ascii2unicode(name + i * 13 + 5, lfn.name5_10, 6);
+        ascii2unicode(name + i * 13 + 11, lfn.name11_12, 2);
+        write_dir_entry(file->desc->dev_id, (bpb_t *)file->desc->data, &lfn,
+                        *file_idx);
+        *file_idx = *file_idx + 1;
+    }
+    return 0;
+}
+
 error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
     bpb_t *bpb = (bpb_t *)fs->data;
     if (!bpb) {
         return -1;
     }
     int file_idx = -1;
+    char real_name[128];
     dir_entry_t *item = NULL;
     if (strlen(path) == 1 && path[0] == '.') {
         file_idx = 0;
@@ -360,30 +548,17 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
         item = &entry;
     } else {
         for (int i = 0; i < bpb->root_entry_count; i++) {
-            dir_entry_t *entry = read_dir_entry(fs->dev_id, bpb, i);
-            if (!entry) {
-                return -2;
-            }
             file_idx = i;
-            if (entry->name[0] == DIR_END) {
-                break;
-            }
-            if (entry->name[0] == DIR_FREE) {
+            bool handled = false;
+            item = handle_dir_entry(fs, &i, path, &handled, real_name);
+            if (!handled) {
                 continue;
             }
-            if (strlen(entry->name) == 1 && entry->name[0] == '.' &&
-                memcmp(path, fs->mount_point, strlen(fs->mount_point))) {
-                item = entry;
-                break;
-            }
-            if (match_file_name(entry->name, path)) {
-                item = entry;
-                break;
-            }
+            break;
         }
     }
     if (item) {
-        read_file_info(file, item, file_idx);
+        read_file_info(file, item, file_idx, path);
         if (file->mode & O_TRUNC) {
             free_cluster_chain(file->desc->dev_id, bpb, file->block_start);
             file->block_start = file->block_cur = INVALID_CLUSTER;
@@ -395,14 +570,18 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
         dir_entry_t entry;
         init_dir_entry(&entry, path, 0);
         error err;
+        if (strlen(path) > 11 &&
+            (err = create_lfn(file, &entry, path, &file_idx)) != 0) {
+            return err;
+        }
         if ((err = write_dir_entry(file->desc->dev_id, bpb, &entry,
                                    file_idx)) != 0) {
             return err;
         }
-        read_file_info(file, &entry, file_idx);
+        read_file_info(file, &entry, file_idx, path);
+        return 0;
     }
-    memcpy(file->name, path, strlen(path));
-    return 0;
+    return -1;
 }
 typedef enum {
     fat16_file_operate_read,
@@ -673,16 +852,13 @@ error fat16_readdir(file_t *file, void *data) {
     }
     bpb_t *bpb = (bpb_t *)file->desc->data;
     dir_entry_t *entry;
+    char real_name[128];
     while (file->pos < file->size) {
-        entry = read_dir_entry(file->desc->dev_id, bpb, file->pos++);
-        if (!entry) {
-            return -1;
-        }
-        if (entry->name[0] == DIR_END) {
-            entry = NULL;
-            break;
-        }
-        if (entry->name[0] == DIR_FREE) {
+        bool handled = false;
+        entry =
+            handle_dir_entry(file->desc, &file->pos, NULL, &handled, real_name);
+        file->pos++;
+        if (!handled) {
             continue;
         }
         break;
@@ -691,9 +867,9 @@ error fat16_readdir(file_t *file, void *data) {
         return -1;
     }
     memset(dirent->name, 0, sizeof(dirent->name));
-    from_sfn(dirent->name, entry->name);
+    memcpy(dirent->name, real_name, strlen(real_name));
     trim(dirent->name);
-    dirent->offset = file->pos;
+    dirent->offset = file->pos - 1;
     dirent->size = entry->file_size;
     dirent->type = FILE_FILE;
     if (entry->attr & DIR_ENTRY_ATTR_DIR) {
