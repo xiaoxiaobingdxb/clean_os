@@ -130,12 +130,12 @@ void test_dir() {
 void test_lfn() {
     init_tty();
     const char *file_name = "/home/test_long_long_long.txt";
-    fd_t fd = open(file_name, O_CREAT | O_RDWR);
+    fd_t fd = open(file_name, O_CREAT | O_RDWR | O_APPEND);
     if (fd < 0) {
         printf("open fail\n");
        return;
     }
-    const char *buf = "test\nlong\nlong";
+    const char *buf = "test\nlong\nlong\n";
     ssize_t size = write(fd, buf, strlen(buf));
     if (size < 0) {
         printf("write fail\n");

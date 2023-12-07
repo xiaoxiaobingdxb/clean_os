@@ -548,12 +548,12 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
         item = &entry;
     } else {
         for (int i = 0; i < bpb->root_entry_count; i++) {
-            file_idx = i;
             bool handled = false;
             item = handle_dir_entry(fs, &i, path, &handled, real_name);
             if (!handled) {
                 continue;
             }
+            file_idx = i;
             break;
         }
     }
@@ -731,7 +731,9 @@ ssize_t fat16_write(file_t *file, const byte_t *buf, size_t size) {
     if (!bpb) {
         return -1;
     }
-
+    if (file->mode & O_APPEND) {
+        file->pos = file->size;
+    }
     if (file->pos + size > file->size && expand_file(file, bpb, size) != 0) {
         return -1;
     }
