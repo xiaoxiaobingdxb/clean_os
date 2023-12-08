@@ -133,7 +133,7 @@ error detect_parts(disk_t *disk) {
         part_info_t *part = disk->parts + i + 1;
         part_item_t *item = mbr.part_items + i;
         part->type = item->system_id;
-        if (part->type == FS_UNVALID) {
+        if (part->type == PART_UNVALID) {
             memset(part->name, 0, sizeof(part->name));
             part->sector_start = 0;
             part->sector_count = 0;

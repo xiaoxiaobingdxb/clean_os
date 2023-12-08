@@ -9,7 +9,8 @@ struct _disk_t;
 typedef struct {
     char name[PART_INFO_NAME_SIZE];
     enum {
-        FS_UNVALID = 0x0,
+        PART_UNVALID = 0x0,
+        PART_FAT16 = 0x6,
     } type;
 
     int sector_start;

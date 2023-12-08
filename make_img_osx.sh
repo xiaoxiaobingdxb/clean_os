@@ -1,0 +1,1 @@
+hdiutil create -fs "MS-DOS FAT16" -volname sdba -size 64M -layout MBRSPUD -ov file.dmg

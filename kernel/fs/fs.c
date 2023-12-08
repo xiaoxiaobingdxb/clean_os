@@ -75,16 +75,6 @@ mount_fail:
     return NULL;
 }
 
-/**
- * @brief /a/b/c -> b/c
-*/
-const char* path_next_child(const char *path) {
-    if (*path == '/') {
-        path++;
-    }
-    while (*path++ != '/');
-    return (const char*)path;
-}
 fd_t sys_open(const char *name, int flag, ...) {
     void *args[2] = {(void *)name, NULL};
     foreach (&mounted_fs, mounted_fs_visitor_by_path, (void *)args)
@@ -155,7 +145,7 @@ error sys_close(fd_t fd) {
 }
 
 error sys_stat(const char *name, void *data) {
-    fd_t fd = open(name, O_RDONLY);
+    fd_t fd = sys_open(name, O_RDONLY);
     int ret = sys_fstat(fd, data);
     close(fd);
     return ret;

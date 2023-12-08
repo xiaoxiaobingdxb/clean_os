@@ -36,4 +36,20 @@ file_t *alloc_file();
 void ref_file(file_t *file);
 void free_file(file_t *file);
 
+/**
+ * @brief /a/b/c -> b/c
+*/
+static inline const char* path_next_child(const char *path) {
+    if (*path == '/') {
+        path++;
+    }
+    while (*path != '/' && *path != 0) {
+        path++;
+    }
+    if (*path != 0) {
+        path++;
+    }
+    return (const char*)path;
+}
+
 #endif // FS_FILE_H

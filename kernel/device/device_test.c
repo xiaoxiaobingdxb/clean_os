@@ -1,8 +1,8 @@
+#include "../io/std.h"
 #include "../memory/malloc/malloc.h"
 #include "../syscall/syscall_user.h"
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"
-#include "../io/std.h"
 
 void init_tty() {
     fd_t fd = open("/dev/tty0", 0);
@@ -112,19 +112,56 @@ void test_disk() {
     // ========================================================>
 }
 
+void read_file(const char *dir, const char *name) {
+    char *path_buf = malloc(strlen(dir) + strlen(name) + 1);
+    sprintf(path_buf, "%s/%s", dir, name);
+    fd_t fd = open(path_buf, O_RDONLY);
+    if (fd < 0) {
+        printf("open file %s err", path_buf);
+        return;
+    }
+    printf("read from file %s:\n", path_buf);
+    const size_t buf_size = 256;
+    char *read_buf = malloc(buf_size);
+    while (true) {
+        ssize_t read_size = read(fd, read_buf, buf_size);
+        if (read_size < 0) {
+            printf("read file %s err", path_buf);
+            break;
+        }
+        printf(read_buf);
+        if (read_size < buf_size) {
+            break;
+        }
+    }
+    free(read_buf);
+    free(path_buf);
+    close(fd);
+}
+
 void test_dir() {
     init_tty();
-    fd_t home = open("/home/.", O_RDONLY);
-    dirent_t dirent;
-    size_t buf_size = 512;
-    char *out_buf = (char *)malloc(buf_size);
-    memset(out_buf, 0, buf_size);
-    while (readdir(home, &dirent) == 0) {
-        sprintf(out_buf, "readdir dirent(name=%s, offset=%d, size=%d, type=%d)\n",dirent.name, dirent.offset, dirent.size, dirent.type);
-        write(STDOUT_FILENO, out_buf, strlen(out_buf));
+    char *dirs[] = {"/home/.", "/home/sub_dir"};
+    for (int i = 0; i < sizeof(dirs) / sizeof(char *); i++) {
+        fd_t home = open(dirs[i], O_RDONLY);
+        dirent_t dirent;
+        size_t buf_size = 512;
+        char *out_buf = (char *)malloc(buf_size);
         memset(out_buf, 0, buf_size);
+        while (readdir(home, &dirent) == 0) {
+            sprintf(out_buf,
+                    "readdir from %s dirent(name=%s, offset=%d, size=%d, "
+                    "type=%d)\n",
+                    dirs[i], dirent.name, dirent.offset, dirent.size,
+                    dirent.type);
+            write(STDOUT_FILENO, out_buf, strlen(out_buf));
+            memset(out_buf, 0, buf_size);
+            // if (dirent.type == FILE_FILE && i > 0) {
+            //     read_file(dirs[i], dirent.name);
+            // }
+        }
+        close(home);
     }
-    close(home);
 }
 
 void test_lfn() {
@@ -133,7 +170,7 @@ void test_lfn() {
     fd_t fd = open(file_name, O_CREAT | O_RDWR | O_APPEND);
     if (fd < 0) {
         printf("open fail\n");
-       return;
+        return;
     }
     const char *buf = "test\nlong\nlong\n";
     ssize_t size = write(fd, buf, strlen(buf));
@@ -143,7 +180,7 @@ void test_lfn() {
     }
     lseek(fd, 0, 0);
     size_t buf_size = 512;
-    char *out_buf = (char*)malloc(buf_size);
+    char *out_buf = (char *)malloc(buf_size);
     memset(out_buf, 0, buf_size);
     size = read(fd, out_buf, buf_size);
     if (size < 0) {
@@ -160,8 +197,8 @@ void test_device() {
         // test_tty();
         // test_kbd();
         // test_disk();
-        // test_dir();
-        test_lfn();
+        test_dir();
+        // test_lfn();
     } else {
     }
 }

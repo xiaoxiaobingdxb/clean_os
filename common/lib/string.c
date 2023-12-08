@@ -72,16 +72,16 @@ size_t trim_strlen(const char *str) {
     return p - str;
 }
 
-char *strchr(const char *str, const char ch) {
+const char *strchr(const char *str, const char ch) {
     while (*str != 0) {
         if (*str == ch) {
             return (char *)str;
         }
         str++;
     }
-    return NULL;
+    return str;
 }
-char *strrchr(const char *str, const char ch) {
+const char *strrchr(const char *str, const char ch) {
     const char *last = NULL;
     while (*str != 0) {
         if (*str == ch) {
@@ -89,7 +89,7 @@ char *strrchr(const char *str, const char ch) {
         }
         str++;
     }
-    return (char *)last;
+    return (const char *)last;
 }
 
 uint32_t strchrs(const char *str, const char ch) {
@@ -101,6 +101,15 @@ uint32_t strchrs(const char *str, const char ch) {
         }
     }
     return ch_cnt;
+}
+
+void strreverse(char *str, const size_t size) {
+    char tmp;
+    for (int i = 0; i < size / 2; i++) {
+        tmp  = str[i];
+        str[i] = str[size - 1 -i];
+        str[size - 1 - i] = tmp;
+    }
 }
 
 int str2num(const char *str, int *num) {
@@ -127,4 +136,19 @@ int str2num(const char *str, int *num) {
         *num = signe * ret;
     }
     return 0;
+}
+
+void num2str(const int num, char *str) {
+    int number = num;
+    if (number < 0) {
+        *(str++) = '-';
+        number *= -1;
+    }
+    char buf[64];
+    int i;
+    for (i = 0; number > 0; i++, number /= 10) {
+        buf[i] = number % 10 + '0';
+    }
+    strreverse(buf, i);
+    memcpy(str, buf, i);
 }
