@@ -104,6 +104,9 @@ int sysinfo(uint32_t pid, sys_info *info) {
 
 int ps(ps_info *ps, size_t count) { return syscall2(SYSCALL_ps, ps, count); }
 
+fd_t dup(fd_t fd) { return syscall1(SYSCALL_dup, fd); }
+fd_t dup2(fd_t dst, fd_t source) { return syscall2(SYSCALL_dup2, dst, source); }
+
 fd_t open(const char *name, int flag) {
     return syscall2(SYSCALL_open, name, flag);
 }
@@ -140,5 +143,18 @@ error readdir(fd_t fd, dirent_t *dirent) {
     return syscall2(SYSCALL_readdir, fd, dirent);
 }
 
-fd_t dup(fd_t fd) { return syscall1(SYSCALL_dup, fd); }
-fd_t dup2(fd_t dst, fd_t source) { return syscall2(SYSCALL_dup2, dst, source); }
+error mkdir(const char *path) {
+    return syscall1(SYSCALL_mkdir, path);
+}
+error rmdir(const char *path) {
+    return syscall1(SYSCALL_rmdir, path);
+}
+error link(const char *new_path, const char *old_path) {
+    return syscall2(SYSCALL_link, new_path, old_path);
+}
+error symlink(const char *new_path, const char *old_path) {
+    return syscall2(SYSCALL_symlink, new_path, old_path);
+}
+error unlink(const char *path) {
+    return syscall1(SYSCALL_unlink, path);
+}

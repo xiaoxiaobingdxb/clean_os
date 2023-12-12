@@ -1,14 +1,14 @@
 #include "./fs.h"
 
 #include "../device/device.h"
+#include "../device/disk/disk.h"
 #include "../syscall/syscall_user.h"
 #include "common/lib/string.h"
 #include "common/tool/lib.h"
-#include "../device/disk/disk.h"
 
 #define FS_TABLE_SIZE 10
 fs_desc_t fs_table[FS_TABLE_SIZE];
-fs_ops_t* fs_ops_table[FS_TABLE_SIZE];
+fs_ops_t *fs_ops_table[FS_TABLE_SIZE];
 list free_fs, mounted_fs;
 void init_fs_table() {
     init_list(&free_fs);
@@ -106,6 +106,37 @@ open_fail:
     return FILENO_UNKNOWN;
 }
 
+fd_t sys_dup(fd_t fd) {
+    file_t *file = task_file(fd);
+    if (!file) {
+        return EBADF;
+    }
+    fd_t new_fd = task_alloc_fd(file);
+    if (new_fd >= 0) {
+        ref_file(file);
+        return new_fd;
+    }
+    return -1;
+}
+fd_t sys_dup2(fd_t dst, fd_t source) {
+    if (dst == source) {
+        return dst;
+    }
+    file_t *file = task_file(source);
+    if (!file) {
+        return EBADF;
+    }
+    file_t *old = task_file(dst);
+    if (old) {
+        free_file(file);
+        task_free_fd(dst);
+    }
+    if (task_set_file(dst, file, true) == 0) {
+        ref_file(file);
+        return dst;
+    }
+}
+
 ssize_t sys_write(fd_t fd, const void *buf, size_t size) {
     file_t *file = task_file(fd);
     if (!file) {
@@ -170,33 +201,76 @@ error sys_readdir(fd_t fd, void *dirent) {
     return file->desc->ops->readdir(file, dirent);
 }
 
-fd_t sys_dup(fd_t fd) {
-    file_t *file =task_file(fd);
+error sys_mkdir(const char *path) {
+    void *args[2] = {(void *)path, NULL};
+    foreach (&mounted_fs, mounted_fs_visitor_by_path, (void *)args)
+        ;
+    if (!args[1]) {
+        goto open_fail;
+    }
+    fs_desc_t *fs = (fs_desc_t *)args[1];
+    file_t *file = alloc_file();
     if (!file) {
-        return EBADF;
+        goto open_fail;
     }
-    fd_t new_fd = task_alloc_fd(file);
-    if (new_fd >= 0) {
-        ref_file(file);
-        return new_fd;
+    fd_t fd = task_alloc_fd(file);
+    if (fd < 0) {
+        goto open_fail;
     }
-    return -1;
-}
-fd_t sys_dup2(fd_t dst, fd_t source) {
-    if (dst == source) {
-        return dst;
+    file->desc = fs;
+    path = path_next_child(path);
+    memcpy(file->name, path, 0);
+    if (fs->ops->mkdir(fs, path, file)) {
+        goto open_fail;
     }
-    file_t *file = task_file(source);
+    return fd;
+open_fail:
     if (!file) {
-        return EBADF;
-    }
-    file_t *old = task_file(dst);
-    if (old) {
         free_file(file);
-        task_free_fd(dst);
     }
-    if (task_set_file(dst, file, true) == 0) {
-        ref_file(file);
-        return dst;
+    return FILENO_UNKNOWN;
+}
+
+error sys_rmdir(const char *path) {
+    fd_t fd = open(path, 0);
+    if (fd < 0) {
+        return fd;
     }
+    file_t *file = task_file(fd);
+    if (!file) {
+        return EBADF;
+    }
+    return file->desc->ops->remove(file);
+}
+
+error _sys_link(const char *new_path, const char *old_path, int link_type) {
+    fd_t fd = open(old_path, 0);
+    if (fd < 0) {
+        return fd;
+    }
+    file_t *file = task_file(fd);
+    if (!file) {
+        return EBADF;
+    }
+    return file->desc->ops->link(file, new_path, link_type);
+}
+
+error sys_link(const char *new_path, const char *old_path) {
+    return _sys_link(new_path, old_path, 0);
+}
+
+error sys_symlink(const char *new_path, const char *old_path) {
+    return _sys_link(new_path, old_path, 1);
+}
+
+error sys_unlink(const char *path) {
+    fd_t fd = open(path, 0);
+    if (fd < 0) {
+        return fd;
+    }
+    file_t *file = task_file(fd);
+    if (!file) {
+        return EBADF;
+    }
+    return file->desc->ops->unlink(file);
 }

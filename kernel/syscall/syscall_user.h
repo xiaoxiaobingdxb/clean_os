@@ -5,14 +5,6 @@
 #include "common/tool/datetime.h"
 #include "common/types/basic.h"
 
-void yield();
-pid_t get_pid();
-pid_t get_ppid();
-pid_t fork();
-pid_t wait(int *status);
-void exit(int status);
-int execve(const char *filename, char *const argv[], char *const envp[]);
-
 #define PROT_NONE 0x0  /* page can not be accessed */
 #define PROT_READ 0x1  /* page can be read */
 #define PROT_WRITE 0x2 /* page can be written */
@@ -27,6 +19,14 @@ static inline void *mmap_anonymous(size_t length) {
     return mmap(NULL, length, PROT_READ | PROT_READ, MAP_ANONYMOUS, 0, 0);
 }
 void munmap(void *addr, size_t size);
+
+void yield();
+pid_t get_pid();
+pid_t get_ppid();
+pid_t fork();
+pid_t wait(int *status);
+void exit(int status);
+int execve(const char *filename, char *const argv[], char *const envp[]);
 
 #define CLONE_VM (1 << 0)  // set if vm shared between process
 #define CLONE_PARENT \
@@ -55,6 +55,8 @@ int ps(ps_info *ps, size_t count);
 #define O_EXCL (1 << 6)
 
 fd_t open(const char *name, int flag);
+fd_t dup(fd_t fd);
+fd_t dup2(fd_t dst, fd_t source);
 ssize_t write(fd_t fd, const void *buf, size_t size);
 ssize_t read(fd_t fd, const void *buf, size_t size);
 
@@ -90,7 +92,11 @@ typedef struct {
     char name[64];
 } dirent_t;
 error readdir(fd_t fd, dirent_t *dirent);
-fd_t dup(fd_t fd);
-fd_t dup2(fd_t dst, fd_t source);
+
+error mkdir(const char *path);
+error rmdir(const char *path);
+error link(const char *new_path, const char *old_path);
+error symlink(const char *new_path, const char *old_path);
+error unlink(const char *path);
 
 #endif

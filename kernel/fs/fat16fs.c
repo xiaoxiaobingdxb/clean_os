@@ -218,13 +218,13 @@ dir_entry_t *read_dir_entry(dev_id_t dev_id, bpb_t *bpb, size_t sector_start,
     return entry;
 }
 
-error write_dir_entry(dev_id_t dev_id, bpb_t *bpb, void *entry, int idx) {
+error write_dir_entry(dev_id_t dev_id, bpb_t *bpb, void *entry, size_t sector_root, int idx) {
     if (idx < 0 || idx >= bpb->root_entry_count) {
         return -1;
     }
     size_t offset = sizeof(dir_entry_t) * idx;
     size_t sector_start =
-        offset / bpb->bytes_per_sector + fat16_root_sector_idx(bpb);
+        offset / bpb->bytes_per_sector + sector_root;
     error err;
     if ((err = buf_read(dev_id, bpb, sector_start, 1)) != 0) {
         return err;
@@ -316,17 +316,10 @@ error set_cluster(dev_id_t dev_id, bpb_t *bpb, fat16_cluster_t cur,
 
 size_t get_dir_entry_count(file_t *file, dir_entry_t *dir) {
     bpb_t *bpb = (bpb_t *)file->desc->data;
-    size_t cluster = dir->cluster_low | dir->cluster_high >> 16;
-    uint32_t sector_start =
-        fat16_data_sector_idx(bpb) +
-        (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
-    if (strlen(file->name) == 1 && file->name[0] == '.') {
-        sector_start = fat16_root_sector_idx(bpb);
-    }
     dir_entry_t *entry;
     size_t count = 0;
     for (int i = 0; i < 256; i++) {
-        entry = read_dir_entry(file->desc->dev_id, bpb, sector_start, i);
+        entry = read_dir_entry(file->desc->dev_id, bpb, file->node_sector_idx, i);
         if (!entry || entry->attr == 0) {
             break;
         }
@@ -421,11 +414,19 @@ int should_handle_dir_entry(dir_entry_t *entry) {
     return 0;
 }
 
+unsigned char lfn_checksum(const unsigned char *pFCBName) {
+    int i;
+    unsigned char sum = 0;
+
+    for (i = 11; i; i--) sum = ((sum & 1) << 7) + (sum >> 1) + *pFCBName++;
+
+    return sum;
+}
+
 uint8_t get_check_sum(const char *short_name) {
     uint8_t check_sum = 0;
     for (int i = 0; i < 11; i++) {
-        check_sum =
-            ((check_sum & 1) ? 0x80 : 0) + (check_sum >> 1) + short_name[i];
+        check_sum = ((check_sum & 1) << 7) + (check_sum >> 1) + short_name[i];
     }
     return check_sum;
 }
@@ -455,28 +456,28 @@ dir_entry_t *handle_lfn_entry(fs_desc_t *fs, size_t sector_start, int *idx,
         memcpy(lfn_buf + 26 * order + 10, lfn_entry->name5_10, 12);
         memcpy(lfn_buf + 26 * order + 22, lfn_entry->name11_12, 4);
         check_sums[i - *idx] = lfn_entry->check_sum;
-        if (lfn_entry->order & 0x1) {
+        if (order == 0) {
             break;
         }
     }
     *idx = i + 1;
     from_lfn(real_name, lfn_buf, sizeof(lfn_buf));
-    if (!path || memcmp(real_name, path, strlen(path)) == 0) {
+    if (!path || memcmp(real_name, path, max(strlen(real_name), strlen(path))) == 0) {
         dir_entry_t *entry =
-            read_dir_entry(fs->dev_id, bpb, fat16_root_sector_idx(bpb), *idx);
+            read_dir_entry(fs->dev_id, bpb, sector_start, *idx);
         if (!entry) {
             return NULL;
         }
         uint8_t check_sum = get_check_sum(entry->name);
-        for (int j = 0; j < lfn_count; j++) {
-            if (check_sums[j] == 0) {
-                break;
-            }
-            if (check_sum != check_sums[j]) {
-                *handled = false;
-                return NULL;
-            }
-        }
+        // for (int j = 0; j < lfn_count; j++) {
+        //     if (check_sums[j] == 0) {
+        //         break;
+        //     }
+        //     if (check_sum != check_sums[j]) {
+        //         *handled = false;
+        //         return NULL;
+        //     }
+        // }
         *handled = true;
         return entry;
     }
@@ -519,7 +520,7 @@ dir_entry_t *handle_dir_entry(fs_desc_t *fs, size_t sector_start, int *idx,
         *handled = true;
         return entry;
     }
-    *handled = true;
+    *handled = false;
     return NULL;
 }
 
@@ -553,61 +554,44 @@ error create_lfn(file_t *file, dir_entry_t *entry, const char *name,
         ascii2unicode(name + i * 13 + 5, lfn.name5_10, 6);
         ascii2unicode(name + i * 13 + 11, lfn.name11_12, 2);
         write_dir_entry(file->desc->dev_id, (bpb_t *)file->desc->data, &lfn,
-                        *file_idx);
+                        file->node_sector_idx, *file_idx);
         *file_idx = *file_idx + 1;
     }
     return 0;
 }
 
-dir_entry_t *find_sub(fs_desc_t *fs, dir_entry_t *dir, int *idx,
-                      const char *path, bool *handled, char *real_name) {
-    bpb_t *bpb = (bpb_t *)fs->data;
-    size_t cluster = dir->cluster_high >> 16 | dir->cluster_low;
-    uint32_t sector_start =
-        fat16_data_sector_idx(bpb) +
-        (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
-    return handle_dir_entry(fs, sector_start, idx, path, handled, real_name);
-}
-
 error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
-    bpb_t *bpb = (bpb_t *)fs->data;
+    bpb_t *bpb = (bpb_t *)file->desc->data;
     if (!bpb) {
         return -1;
     }
-    int file_idx = -1;
-    char real_name[128];
-    dir_entry_t *item = NULL;
-    if (strlen(path) == 1 && path[0] == '.') {
-        file_idx = 0;
-        dir_entry_t entry;
-        entry.attr = DIR_ENTRY_ATTR_DIR;
-        entry.file_size = bpb->root_entry_count;
-        entry.cluster_low = 0;
-        memcpy(item->name, ".", 1);
-        item = &entry;
-    } else {
-        for (int i = 0; i < bpb->root_entry_count; i++) {
-            bool handled = false;
-            item = handle_dir_entry(fs, fat16_root_sector_idx(bpb), &i, path,
-                                    &handled, real_name);
+    char *save_ptr;
+    char *name = strtok_r((char*)path, "/", &save_ptr);
+    size_t sector_start = fat16_root_sector_idx(bpb);
+    char real_name[256];
+    int file_idx;
+    dir_entry_t *item;
+    while (name) {
+        bool handled = false;
+        for (int i = 0; i < 256; i++) {
+            item = handle_dir_entry(file->desc, sector_start, &i, name,
+                                     &handled, real_name);
             if (!handled) {
                 continue;
             }
             file_idx = i;
-            const char *next = path_next_child(path);
-            if (memcmp(next, path, strlen(next))) {
-                if (item->attr & DIR_ENTRY_ATTR_DIR == 0) {
-                    return -1;
-                }
-                item = find_sub(fs, item, &i, next, &handled, real_name);
-                if (!handled) {
-                    continue;
-                }
-                file_idx = i;
-            }
             break;
         }
+        if (!item) {
+            break;
+        }
+        name = strtok_r(NULL, "/", &save_ptr);
+        size_t cluster = item->cluster_high >> 16 | item->cluster_low;
+        sector_start =
+        fat16_data_sector_idx(bpb) +
+        (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
     }
+    file->node_sector_idx = sector_start;
     if (item) {
         read_file_info(file, item, file_idx, path);
         if (file->mode & O_TRUNC) {
@@ -616,7 +600,7 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
             file->size = 0;
         }
         return 0;
-    } else if ((file->mode | O_CREAT) &&
+    } else if ((file->mode & O_CREAT) &&
                file_idx >= 0) {  // create file with dir_entry
         dir_entry_t entry;
         init_dir_entry(&entry, path, 0);
@@ -626,7 +610,7 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
             return err;
         }
         if ((err = write_dir_entry(file->desc->dev_id, bpb, &entry,
-                                   file_idx)) != 0) {
+                                   sector_start, file_idx)) != 0) {
             return err;
         }
         read_file_info(file, &entry, file_idx, path);
@@ -651,7 +635,7 @@ ssize_t fat16_file_operate(file_t *file, byte_t *buf, size_t size,
     while (size > 0) {
         uint32_t step_read_size = size;
         uint32_t cluster_offset = file->pos % fat16_bytes_per_cluster(bpb);
-        uint32_t sector_start =
+uint32_t sector_start =
             fat16_data_sector_idx(bpb) +
             (file->block_cur - CLUSTER_START) * bpb->sectors_per_cluster;
         error err;
@@ -806,7 +790,7 @@ void fat16_close(file_t *file) {
         return;
     }
     dir_entry_t *entry = read_dir_entry(
-        file->desc->dev_id, bpb, fat16_root_sector_idx(bpb), file->file_idx);
+        file->desc->dev_id, bpb, file->node_sector_idx, file->file_idx);
     if (!entry) {
         return;
     }
@@ -822,7 +806,7 @@ void fat16_close(file_t *file) {
     entry->cluster_high = file->block_start >> 16;
     entry->cluster_low = file->block_start;
     entry->file_size = file->size;
-    write_dir_entry(file->desc->dev_id, bpb, entry, file->file_idx);
+    write_dir_entry(file->desc->dev_id, bpb, entry, file->node_sector_idx, file->file_idx);
 }
 off_t fat16_seek(file_t *file, off_t offset, int whence) {
     off_t ret_offset = -1;
@@ -883,7 +867,7 @@ error fat16_stat(file_t *file, void *data) {
     stat->block_count =
         fat16_bytes_per_cluster(bpb) * get_file_cluster_count(file);
     dir_entry_t *entry = read_dir_entry(
-        file->desc->dev_id, bpb, fat16_root_sector_idx(bpb), file->file_idx);
+        file->desc->dev_id, bpb, file->node_sector_idx, file->file_idx);
     if (!entry) {
         return 0;
     }
@@ -903,20 +887,12 @@ error fat16_readdir(file_t *file, void *data) {
     if (file->pos >= file->size) {
         return -1;
     }
-    bpb_t *bpb = (bpb_t *)file->desc->data;
-    size_t cluster = file->block_start;
-    uint32_t sector_start =
-        fat16_data_sector_idx(bpb) +
-        (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
-    if (strlen(file->name) == 1 && file->name[0] == '.') {
-        sector_start = fat16_root_sector_idx(bpb);
-    }
 
     dir_entry_t *entry;
     char real_name[128];
     while (file->pos < file->size) {
         bool handled = false;
-        entry = handle_dir_entry(file->desc, sector_start, &file->pos, NULL,
+        entry = handle_dir_entry(file->desc, file->node_sector_idx, &file->pos, NULL,
                                  &handled, real_name);
         file->pos++;
         if (!handled) {
@@ -941,6 +917,14 @@ error fat16_readdir(file_t *file, void *data) {
 
 error fat16_ioctl(file_t *file, int cmd, int arg0, int arg1) { return -1; }
 
+error fat16_remove(file_t *file) {}
+
+error fat16_mkdir(fs_desc_t *fs, const char *path, file_t *file) {}
+
+error fat16_link(file_t *file, const char *new_path, int arg) {}
+
+error fat16_unlink(file_t *file) {}
+
 fs_ops_t fat16_ops = {
     .mount = fat16_mount,
     .unmount = fat16_unmount,
@@ -952,4 +936,8 @@ fs_ops_t fat16_ops = {
     .stat = fat16_stat,
     .readdir = fat16_readdir,
     .ioctl = fat16_ioctl,
+    .remove = fat16_remove,
+    .mkdir = fat16_mkdir,
+    .link = fat16_link,
+    .unlink = fat16_unlink,
 };

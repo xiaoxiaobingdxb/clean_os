@@ -31,7 +31,11 @@ typedef struct _fs_ops_t {
     void (*close)(file_t *file);
     off_t (*seek)(file_t *file, off_t offset, int whence);
     error (*stat)(file_t *file, void *data);
+    error (*remove)(file_t *file);
     error (*readdir)(file_t *dir, void *dirent);
+    error (*mkdir)(fs_desc_t *fs, const char *path, file_t *file);
+    error (*link)(file_t *file, const char *new_path, int arg);
+    error (*unlink)(file_t *file_t);
 } fs_ops_t;
 
 void init_fs();
@@ -40,6 +44,8 @@ fs_desc_t *mount(fs_type_t type, const char *mount_point, int dev_major,
                  int dev_minor);
 
 fd_t sys_open(const char *name, int flag, ...);
+fd_t sys_dup(fd_t fd);
+fd_t sys_dup2(fd_t dst, fd_t source);
 
 ssize_t sys_write(fd_t fd, const void *buf, size_t size);
 
@@ -53,7 +59,12 @@ error sys_stat(const char *name, void *data);
 error sys_fstat(fd_t fd, void *data);
 error sys_readdir(fd_t fd, void *dirent);
 
-fd_t sys_dup(fd_t fd);
-fd_t sys_dup2(fd_t dst, fd_t source);
+error sys_mkdir(const char *path);
+error sys_rmdir(const char *path);
+
+error sys_link(const char *new_path, const char *old_path);
+error sys_symlink(const char *new_path, const char *old_path);
+
+error sys_unlink(const char *path);
 
 #endif  // FS_FS_H

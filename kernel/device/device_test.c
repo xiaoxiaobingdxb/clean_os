@@ -141,9 +141,12 @@ void read_file(const char *dir, const char *name) {
 
 void test_dir() {
     init_tty();
-    char *dirs[] = {"/home/.", "/home/sub_dir"};
+    char *dirs[] = {"/home/.", "/home/sub_dir", "/home/long_long_long_sub"};
     for (int i = 0; i < sizeof(dirs) / sizeof(char *); i++) {
         fd_t home = open(dirs[i], O_RDONLY);
+        if (home < 0) {
+            continue;
+        }
         dirent_t dirent;
         size_t buf_size = 512;
         char *out_buf = (char *)malloc(buf_size);
@@ -162,6 +165,33 @@ void test_dir() {
         }
         close(home);
     }
+}
+
+void test_sub_dir() {
+    init_tty();
+
+    fd_t sub_dir = open("/home/sub_dir", O_RDONLY);
+    if (sub_dir >= 0) {
+        dirent_t dirent;
+        while ((readdir(sub_dir, &dirent)) == 0) {
+            printf(
+                "readdir from %s dirent(name=%s, offset=%d, size=%d, "
+                "type=%d)\n",
+                "/home/sub_dir", dirent.name, dirent.offset, dirent.size,
+                dirent.type);
+        }
+    }
+
+    fd_t fd = open("/home/sub_dir/long_long_long_sub/test.txt", O_RDONLY);
+    if (fd < 0) {
+        printf("not found");
+        return;
+    }
+    char *read_buf = (char *)malloc(256);
+    ssize_t read_size = read(fd, read_buf, 256);
+    printf("read:%s\n", read_buf);
+    free(read_buf);
+    close(fd);
 }
 
 void test_lfn() {
@@ -197,8 +227,9 @@ void test_device() {
         // test_tty();
         // test_kbd();
         // test_disk();
-        test_dir();
+        // test_dir();
         // test_lfn();
+        test_sub_dir();
     } else {
     }
 }

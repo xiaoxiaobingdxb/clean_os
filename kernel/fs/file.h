@@ -29,6 +29,7 @@ typedef struct {
     uint32_t pos;
     uint32_t block_start;
     uint32_t block_cur;
+    size_t node_sector_idx;
 } file_t;
 
 void init_file_table();

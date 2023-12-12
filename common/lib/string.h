@@ -11,6 +11,8 @@ size_t trim(const char *str);
 size_t trim_strlen(const char *str);
 const char *strchr(const char *str, const char ch);
 const char *strrchr(const char *str, const char ch);
-uint32_t strchrs(const char* str, const char ch);
-int str2num(const char* str, int *num);
+uint32_t strchrs(const char *str, const char ch);
+int str2num(const char *str, int *num);
+char *strtok(char *str, const char *delim);
+char *strtok_r(char *str, const char *delim, char **save_ptr);
 #endif
