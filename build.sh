@@ -21,3 +21,9 @@ for (( i=0; i < ${#binFiles[@]}; i=i+2 ));do
     echo ${binFiles[i]}-${binFiles[i+1]}
     dd if=${binFiles[i]} of=$os_img bs=512 conv=notrunc seek=${binFiles[i+1]}
 done
+
+# mkdir mp
+# hdiutil attach -mountpoint mp ../file.dmg
+# cp shell.elf mp/shell.elf
+# hdiutil detach mp
+# rm -rf mp

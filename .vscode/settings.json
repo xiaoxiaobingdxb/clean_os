@@ -80,7 +80,20 @@
         "istream": "c",
         "cstdint": "cpp",
         "new": "cpp",
-        "datetime.h": "c"
+        "datetime.h": "c",
+        "syscall.h": "c",
+        "fs_model.h": "c",
+        "task_model.h": "c",
+        "__verbose_abort": "c",
+        "tty.h": "c",
+        "keyboard_code.h": "c",
+        "deque": "c",
+        "forward_list": "c",
+        "list": "c",
+        "map": "c",
+        "set": "c",
+        "unordered_set": "c",
+        "cstdlib": "c"
     }
     
 }

@@ -32,13 +32,17 @@ enable_language(ASM)
 # search h file
 include_directories(
     ${PROJECT_SOURCE_DIR}
+    include
 )
 
 add_subdirectory(common)
 add_subdirectory(boot)
 add_subdirectory(loader)
 add_subdirectory(kernel)
+add_subdirectory(applib)
+add_subdirectory(shell)
 
 add_dependencies(boot common)
 add_dependencies(loader common)
 add_dependencies(kernel common)
+add_dependencies(shell common app)

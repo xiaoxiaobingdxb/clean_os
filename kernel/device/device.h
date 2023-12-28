@@ -2,8 +2,7 @@
 #define DEVICE_DEIVCE_H
 
 #include "common/types/basic.h"
-
-typedef int dev_id_t;
+#include "include/fs_model.h"
 
 typedef struct _device_t {
     struct _device_desc_t *desc;

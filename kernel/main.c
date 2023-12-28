@@ -26,19 +26,29 @@ extern void test_clone();
 extern void test_malloc_process();
 extern void test_device();
 
+extern void init_shell();
 void init_process() {
     // test_fork();
     pid_t pid = get_pid();
     ASSERT(pid == 1);
     sys_info info;
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     // test_clone();
     // test_malloc_process();
-    test_device();
+    // pid = fork();
+    // if (pid == 0) {
+    //     test_device();
+    //     return;
+    // }
+    pid = fork();
+    if (pid == 0) {
+        init_shell();
+        return;
+    }
     for (;;) {
         int status;
         pid_t child_pid = wait(&status);
-        sysinfo(pid, &info);
+        sysinfo(pid, &info, SYS_INFO_MEM);
         pid_t cpid = child_pid;
         if (child_pid == -1) {
             yield();

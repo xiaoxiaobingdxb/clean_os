@@ -48,6 +48,10 @@
                 //     "text": "-exec-until *0x7c00",
                 //     "ignoreFailures": false
                 // }
+                {
+                    "text": "add-symbol-file ./build/shell/shell.elf 0x81000000",
+                    "ignoreFailures": false
+                }
             ]
         },
     ],

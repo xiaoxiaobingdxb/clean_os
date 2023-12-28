@@ -38,6 +38,7 @@ typedef struct {
     vir_addr_alloc_t vir_addr_alloc;
 
     file_t *file_table[TASK_FILE_SIZE];
+    char pwd[64];
 } task_struct;
 
 extern list ready_tasks;

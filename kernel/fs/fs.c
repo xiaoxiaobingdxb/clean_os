@@ -5,6 +5,7 @@
 #include "../syscall/syscall_user.h"
 #include "common/lib/string.h"
 #include "common/tool/lib.h"
+#include "../thread/thread.h"
 
 #define FS_TABLE_SIZE 10
 fs_desc_t fs_table[FS_TABLE_SIZE];
@@ -100,7 +101,7 @@ fd_t sys_open(const char *name, int flag, ...) {
     }
     return fd;
 open_fail:
-    if (!file) {
+    if (file) {
         free_file(file);
     }
     return FILENO_UNKNOWN;

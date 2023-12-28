@@ -4,9 +4,9 @@
 int test_malloc(void *arg) {
     pid_t pid = get_pid();
     sys_info info;
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     int *arr = malloc(256 * sizeof(int));
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     for (int i = 0; i < 10; i++) {
         arr[i] = i;
     }
@@ -15,19 +15,19 @@ int test_malloc(void *arg) {
     int *k_3 = malloc(256 * sizeof(int));
     int *k_4 = malloc(256 * sizeof(int));
     int *k_big = malloc(10000 * sizeof(int));
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     free(k_1);
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     free(k_2);
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     free(k_3);
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     free(k_4);
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     free(k_big);
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     free(arr);
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     pid = get_pid();
     return 0;
 }

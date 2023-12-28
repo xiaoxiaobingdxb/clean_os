@@ -56,6 +56,11 @@ typedef struct {
      bpb->root_entry_count * sizeof(dir_entry_t) / bpb->bytes_per_sector)
 #define sector_idx_to_addr(bpb, idx) (idx * bpb->bytes_per_sector)
 
+#define get_sector_start(bpb, item)                                     \
+    (fat16_data_sector_idx(bpb) +                                       \
+     ((item->cluster_high >> 16 | item->cluster_low) - CLUSTER_START) * \
+         bpb->sectors_per_cluster)
+
 #define DIR_ENTRY_ATTR_READ_ONLY 0x01
 #define DIR_ENTRY_ATTR_HIDDEN 0x02
 #define DIR_ENTRY_ATTR_SYSTEM 0x04
@@ -218,13 +223,13 @@ dir_entry_t *read_dir_entry(dev_id_t dev_id, bpb_t *bpb, size_t sector_start,
     return entry;
 }
 
-error write_dir_entry(dev_id_t dev_id, bpb_t *bpb, void *entry, size_t sector_root, int idx) {
+error write_dir_entry(dev_id_t dev_id, bpb_t *bpb, void *entry,
+                      size_t sector_root, int idx) {
     if (idx < 0 || idx >= bpb->root_entry_count) {
         return -1;
     }
     size_t offset = sizeof(dir_entry_t) * idx;
-    size_t sector_start =
-        offset / bpb->bytes_per_sector + sector_root;
+    size_t sector_start = offset / bpb->bytes_per_sector + sector_root;
     error err;
     if ((err = buf_read(dev_id, bpb, sector_start, 1)) != 0) {
         return err;
@@ -258,9 +263,12 @@ void to_sfn(char *buf, const char *path) {
 
 void from_sfn(char *dst, const char *sfn) {
     memcpy(dst, sfn, 8);
-    if (trim_strlen(sfn + 8) > 0) {
-        dst[trim_strlen(dst)] = '.';
-        memcpy(dst + trim_strlen(dst), sfn + 8, 3);
+    size_t str_len = trim_strlen(sfn + 8);
+    if (str_len > 0) {
+        str_len = trim_strlen(dst);
+        dst[str_len] = '.';
+        str_len = trim_strlen(dst);
+        memcpy(dst + str_len, sfn + 8, 3);
     }
 }
 bool match_sfn(const char *entry_name, const char *path) {
@@ -314,12 +322,12 @@ error set_cluster(dev_id_t dev_id, bpb_t *bpb, fat16_cluster_t cur,
     return 0;
 }
 
-size_t get_dir_entry_count(file_t *file, dir_entry_t *dir) {
-    bpb_t *bpb = (bpb_t *)file->desc->data;
+size_t get_dir_entry_count(fs_desc_t *desc, size_t node_sector_idx) {
+    bpb_t *bpb = (bpb_t *)desc->data;
     dir_entry_t *entry;
     size_t count = 0;
     for (int i = 0; i < 256; i++) {
-        entry = read_dir_entry(file->desc->dev_id, bpb, file->node_sector_idx, i);
+        entry = read_dir_entry(desc->dev_id, bpb, node_sector_idx, i);
         if (!entry || entry->attr == 0) {
             break;
         }
@@ -343,7 +351,7 @@ void read_file_info(file_t *file, dir_entry_t *entry, uint32_t file_idx,
         entry->cluster_high >> 16 | entry->cluster_low;
     memcpy(file->name, path, strlen(path));
     if (file->type == FILE_DIR) {
-        file->size = get_dir_entry_count(file, entry);
+        file->size = get_dir_entry_count(file->desc, file->node_sector_idx);
     }
 }
 
@@ -462,7 +470,8 @@ dir_entry_t *handle_lfn_entry(fs_desc_t *fs, size_t sector_start, int *idx,
     }
     *idx = i + 1;
     from_lfn(real_name, lfn_buf, sizeof(lfn_buf));
-    if (!path || memcmp(real_name, path, max(strlen(real_name), strlen(path))) == 0) {
+    if (!path ||
+        memcmp(real_name, path, max(strlen(real_name), strlen(path))) == 0) {
         dir_entry_t *entry =
             read_dir_entry(fs->dev_id, bpb, sector_start, *idx);
         if (!entry) {
@@ -566,16 +575,28 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
         return -1;
     }
     char *save_ptr;
-    char *name = strtok_r((char*)path, "/", &save_ptr);
+    char *name = strtok_r((char *)path, "/", &save_ptr);
     size_t sector_start = fat16_root_sector_idx(bpb);
     char real_name[256];
     int file_idx;
-    dir_entry_t *item;
-    while (name) {
+    dir_entry_t *item = NULL;
+    while (true) {
+        if (name == NULL || name[0] == '.') {
+            file_idx = 0;
+            dir_entry_t entry;
+            entry.attr = DIR_ENTRY_ATTR_DIR;
+            entry.file_size = bpb->root_entry_count;
+            memcpy(item->name, ".", 1);
+            item = &entry;
+            break;
+        }
+        if (name == NULL) {
+            break;
+        }
         bool handled = false;
         for (int i = 0; i < 256; i++) {
             item = handle_dir_entry(file->desc, sector_start, &i, name,
-                                     &handled, real_name);
+                                    &handled, real_name);
             if (!handled) {
                 continue;
             }
@@ -587,9 +608,9 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
         }
         name = strtok_r(NULL, "/", &save_ptr);
         size_t cluster = item->cluster_high >> 16 | item->cluster_low;
-        sector_start =
-        fat16_data_sector_idx(bpb) +
-        (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
+        sector_start = fat16_data_sector_idx(bpb) +
+                       (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
+        // sector_start = get_sector_start(bpb, item);
     }
     file->node_sector_idx = sector_start;
     if (item) {
@@ -635,7 +656,7 @@ ssize_t fat16_file_operate(file_t *file, byte_t *buf, size_t size,
     while (size > 0) {
         uint32_t step_read_size = size;
         uint32_t cluster_offset = file->pos % fat16_bytes_per_cluster(bpb);
-uint32_t sector_start =
+        uint32_t sector_start =
             fat16_data_sector_idx(bpb) +
             (file->block_cur - CLUSTER_START) * bpb->sectors_per_cluster;
         error err;
@@ -789,8 +810,8 @@ void fat16_close(file_t *file) {
     if (!bpb) {
         return;
     }
-    dir_entry_t *entry = read_dir_entry(
-        file->desc->dev_id, bpb, file->node_sector_idx, file->file_idx);
+    dir_entry_t *entry = read_dir_entry(file->desc->dev_id, bpb,
+                                        file->node_sector_idx, file->file_idx);
     if (!entry) {
         return;
     }
@@ -806,7 +827,8 @@ void fat16_close(file_t *file) {
     entry->cluster_high = file->block_start >> 16;
     entry->cluster_low = file->block_start;
     entry->file_size = file->size;
-    write_dir_entry(file->desc->dev_id, bpb, entry, file->node_sector_idx, file->file_idx);
+    write_dir_entry(file->desc->dev_id, bpb, entry, file->node_sector_idx,
+                    file->file_idx);
 }
 off_t fat16_seek(file_t *file, off_t offset, int whence) {
     off_t ret_offset = -1;
@@ -866,8 +888,8 @@ error fat16_stat(file_t *file, void *data) {
     stat->block_size = bpb->bytes_per_sector;
     stat->block_count =
         fat16_bytes_per_cluster(bpb) * get_file_cluster_count(file);
-    dir_entry_t *entry = read_dir_entry(
-        file->desc->dev_id, bpb, file->node_sector_idx, file->file_idx);
+    dir_entry_t *entry = read_dir_entry(file->desc->dev_id, bpb,
+                                        file->node_sector_idx, file->file_idx);
     if (!entry) {
         return 0;
     }
@@ -890,10 +912,11 @@ error fat16_readdir(file_t *file, void *data) {
 
     dir_entry_t *entry;
     char real_name[128];
+    memset(real_name, 0, sizeof(real_name));
     while (file->pos < file->size) {
         bool handled = false;
-        entry = handle_dir_entry(file->desc, file->node_sector_idx, &file->pos, NULL,
-                                 &handled, real_name);
+        entry = handle_dir_entry(file->desc, file->node_sector_idx, &file->pos,
+                                 NULL, &handled, real_name);
         file->pos++;
         if (!handled) {
             continue;
@@ -907,10 +930,15 @@ error fat16_readdir(file_t *file, void *data) {
     memcpy(dirent->name, real_name, strlen(real_name));
     trim(dirent->name);
     dirent->offset = file->pos - 1;
-    dirent->size = entry->file_size;
+    bpb_t *bpb = (bpb_t *)file->desc->data;
+    size_t entry_sector_start = get_sector_start(bpb, entry);
     dirent->type = FILE_FILE;
+    dirent->size = entry->file_size;
+    dirent->child_count = 1;
     if (entry->attr & DIR_ENTRY_ATTR_DIR) {
         dirent->type = FILE_DIR;
+        dirent->child_count =
+            get_dir_entry_count(file->desc, entry_sector_start);
     }
     return 0;
 }

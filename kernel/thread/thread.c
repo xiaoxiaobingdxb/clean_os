@@ -8,6 +8,7 @@
 #include "common/tool/lib.h"
 #include "process.h"
 #include "timer.h"
+#include "../fs/fs.h"
 
 list ready_tasks;
 list all_tasks;
@@ -74,6 +75,8 @@ void init_thread(task_struct *pthread, const char *name, uint32_t priority) {
     pthread->priority = priority;
     pthread->ticks = priority;
     pthread->elapset_ticks = 0;
+    char default_pwd[] =  DEFAULT_PWD;
+    memcpy(pthread->pwd, default_pwd, sizeof(default_pwd));
 }
 
 task_struct *cur_thread() {

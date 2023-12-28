@@ -36,7 +36,7 @@ void test_fork_process() {
     int count = 0;
     sys_info info;
     pid_t pid = get_pid();
-    sysinfo(pid, &info);
+    sysinfo(pid, &info, SYS_INFO_MEM);
     pid_t child_pid = fork();
     if (!child_pid) {  // is child
         test_child_process(&count);
@@ -49,10 +49,10 @@ void test_fork_process() {
         // uint32_t child_thread_id = clone(test_clone_process,
         // (void*)child_stack, 0, NULL);
 
-        int result = sysinfo(pid, &info);
+        int result = sysinfo(pid, &info, SYS_INFO_MEM);
         int status;
         child_pid = wait(&status);
-        result = sysinfo(pid, &info);
+        result = sysinfo(pid, &info, SYS_INFO_MEM);
         count++;
         if (child_pid == -1) {
             break;

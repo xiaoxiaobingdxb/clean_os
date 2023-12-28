@@ -1,4 +1,6 @@
 #include "syscall_user.h"
+#include "include/syscall.h"
+#include "../thread/model.h"
 
 #include "syscall_no.h"
 
@@ -98,8 +100,8 @@ uint32_t clone(int (*func)(void *), void *child_stack, int flags,
 void deprecated_clone(const char *name, uint32_t priority, void *func,
                       void *func_arg) {}
 
-int sysinfo(uint32_t pid, sys_info *info) {
-    return syscall2(SYSCALL_sysinfo, pid, info);
+int sysinfo(uint32_t pid, sys_info *info, int flags) {
+    return syscall3(SYSCALL_sysinfo, pid, info, flags);
 }
 
 int ps(ps_info *ps, size_t count) { return syscall2(SYSCALL_ps, ps, count); }

@@ -269,30 +269,33 @@ void *process_mmap(void *addr, size_t length, int prot, int flags, int fd,
     return (void *)ret_vaddr;
 }
 
-int process_sysinfo(uint32_t pid, sys_info *info) {
+int process_sysinfo(uint32_t pid, sys_info *info, int flags) {
     task_struct *task = pid2task(pid);
     if (!task) {
         return -1;
     }
-    extern phy_addr_alloc_t kernel_phy_addr_alloc;
-    extern vir_addr_alloc_t kernel_vir_addr_alloc;
-    extern phy_addr_alloc_t user_phy_addr_alloc;
-    uint32_t kernel_page_count = count_mem_used(&kernel_vir_addr_alloc);
-    uint32_t user_page_count = count_mem_used(&task->vir_addr_alloc);
-    uint32_t kernel_phy_page_count = count_mem_used(&kernel_phy_addr_alloc);
-    uint32_t user_phy_page_count = count_mem_used(&user_phy_addr_alloc);
-    info->kernel_mem_used = kernel_page_count * MEM_PAGE_SIZE;
-    info->user_mem_used = user_page_count * MEM_PAGE_SIZE;
-    info->kernel_phy_mem_used = kernel_phy_page_count * MEM_PAGE_SIZE;
-    info->user_phy_mem_used = user_phy_page_count * MEM_PAGE_SIZE;
+    if (flags & SYS_INFO_MEM) {
+        extern phy_addr_alloc_t kernel_phy_addr_alloc;
+        extern vir_addr_alloc_t kernel_vir_addr_alloc;
+        extern phy_addr_alloc_t user_phy_addr_alloc;
+        uint32_t kernel_page_count = count_mem_used(&kernel_vir_addr_alloc);
+        uint32_t user_page_count = count_mem_used(&task->vir_addr_alloc);
+        uint32_t kernel_phy_page_count = count_mem_used(&kernel_phy_addr_alloc);
+        uint32_t user_phy_page_count = count_mem_used(&user_phy_addr_alloc);
+        info->kernel_mem_used = kernel_page_count * MEM_PAGE_SIZE;
+        info->user_mem_used = user_page_count * MEM_PAGE_SIZE;
+        info->kernel_phy_mem_used = kernel_phy_page_count * MEM_PAGE_SIZE;
+        info->user_phy_mem_used = user_phy_page_count * MEM_PAGE_SIZE;
+    }
+    memcpy(info->pwd, task->pwd, sizeof(task->pwd));
     return 0;
 }
 
 bool ps_info_visitor(list_node *node, void *arg) {
-    void** args = (void**)arg;
-    ps_info *ps = (ps_info*)args[0];
-    size_t *count = (size_t*)args[1];
-    size_t *index = (size_t*)args[2];
+    void **args = (void **)arg;
+    ps_info *ps = (ps_info *)args[0];
+    size_t *count = (size_t *)args[1];
+    size_t *index = (size_t *)args[2];
     if (*index >= *count) {
         return false;
     }
@@ -305,8 +308,9 @@ bool ps_info_visitor(list_node *node, void *arg) {
 }
 int process_ps(ps_info *ps, size_t count) {
     size_t index = 0;
-    void* args[3] = {(void*)ps, (void*)&count, (void*)&index};
-    foreach(&all_tasks, ps_info_visitor, args);
+    void *args[3] = {(void *)ps, (void *)&count, (void *)&index};
+    foreach (&all_tasks, ps_info_visitor, args)
+        ;
     return index;
 }
 
@@ -375,7 +379,7 @@ uint32_t process_clone(int (*func)(void *), void *child_stack, int flags,
         memcpy(&thread->vir_addr_alloc, &cur->vir_addr_alloc,
                sizeof(vir_addr_alloc_t));
         if (args->child_stack == NULL) {
-            args->child_stack =(void*) malloc_thread_mem(PF_USER, 1);
+            args->child_stack = (void *)malloc_thread_mem(PF_USER, 1);
         }
     } else {
         init_process_mem(thread);

@@ -3,8 +3,8 @@
 
 #include "common/types/basic.h"
 #include "../device/device.h"
+#include "include/fs_model.h"
 
-typedef int fd_t;
 typedef int mode_t;
 
 #define FILE_NAME_SIZE 64

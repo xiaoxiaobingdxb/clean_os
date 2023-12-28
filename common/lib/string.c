@@ -49,22 +49,56 @@ size_t strlen(const char *str) {
     return (p - str - 1);
 }
 
-size_t replace(const char *str, char new, char old) {
+size_t replace(char *str, char new, char old) {
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] == old) {
+            *(str + i) = new;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+size_t replace_all(char *str, char new, char old) {
     size_t count = 0;
     for (int i = 0; i < strlen(str); i++) {
         if (str[i] == old) {
-            *((char *)str + i) = new;
+            *(str + i) = new;
             count++;
         }
     }
     return count;
 }
 
-size_t trim(const char *str) { return replace(str, 0, ' '); }
+size_t trim(char *str) { return replace_all(str, 0, ' '); }
+
+size_t trim_left(char *str) {
+    size_t count = 0;
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] == ' ') {
+            *(str + i) = 0;
+        } else {
+            break;
+        }
+    }
+    return count;
+}
+
+size_t trim_right(char *str) {
+    size_t count = 0;
+    for (int i = strlen(str) - 1; i >= 0; i--) {
+        if (str[i] == ' ') {
+            *(str + i) = 0;
+        } else {
+            break;
+        }
+    }
+    return count;
+}
 
 size_t trim_strlen(const char *str) {
     const char *p = str;
-    while (p > 0 && *p != ' ') {
+    while (p > 0 && *p != ' ' && *p != 0) {
         p++;
     }
     return p - str;

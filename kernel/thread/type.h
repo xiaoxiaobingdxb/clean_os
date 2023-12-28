@@ -2,7 +2,8 @@
 #define THREAD_TYPE_H
 
 #include "common/types/basic.h"
-typedef uint32_t pid_t;
+#include "include/task_model.h"
+
 typedef enum {
     TASK_UNKNOWN,
     TASK_RUNNING,

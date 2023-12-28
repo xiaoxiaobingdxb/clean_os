@@ -4,14 +4,8 @@
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"
 
-void init_tty() {
-    fd_t fd = open("/dev/tty0", 0);
-    dup2(STDIN_FILENO, fd);
-    dup2(STDOUT_FILENO, fd);
-    dup2(STDERR_FILENO, fd);
-}
 void test_tty() {
-    init_tty();
+    init_std();
     char *str = "test_stdout\n";
     ssize_t count = write(STDOUT_FILENO, str, strlen(str));
     str = "test_stderr\n";
@@ -24,7 +18,7 @@ void test_tty() {
 }
 
 void test_kbd() {
-    init_tty();
+    init_std();
     int buf_size = 32;
     char *buf = mmap_anonymous(buf_size);
     ssize_t count = 0;
@@ -35,7 +29,7 @@ void test_kbd() {
 }
 
 void test_disk() {
-    init_tty();
+    init_std();
     // ========================================================>
     fd_t fd = open("/home/test.txt", O_RDONLY);
     size_t buf_size = 512;
@@ -140,7 +134,7 @@ void read_file(const char *dir, const char *name) {
 }
 
 void test_dir() {
-    init_tty();
+    init_std();
     char *dirs[] = {"/home/.", "/home/sub_dir", "/home/long_long_long_sub"};
     for (int i = 0; i < sizeof(dirs) / sizeof(char *); i++) {
         fd_t home = open(dirs[i], O_RDONLY);
@@ -168,8 +162,7 @@ void test_dir() {
 }
 
 void test_sub_dir() {
-    init_tty();
-
+    init_std();
     fd_t sub_dir = open("/home/sub_dir", O_RDONLY);
     if (sub_dir >= 0) {
         dirent_t dirent;
@@ -195,7 +188,7 @@ void test_sub_dir() {
 }
 
 void test_lfn() {
-    init_tty();
+    init_std();
     const char *file_name = "/home/test_long_long_long.txt";
     fd_t fd = open(file_name, O_CREAT | O_RDWR | O_APPEND);
     if (fd < 0) {
@@ -222,14 +215,10 @@ void test_lfn() {
 }
 
 void test_device() {
-    pid_t pid = fork();
-    if (pid == 0) {
-        // test_tty();
-        // test_kbd();
-        // test_disk();
-        // test_dir();
-        // test_lfn();
-        test_sub_dir();
-    } else {
-    }
+    // test_tty();
+    // test_kbd();
+    // test_disk();
+    // test_dir();
+    // test_lfn();
+    test_sub_dir();
 }

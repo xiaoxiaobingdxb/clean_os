@@ -6,6 +6,7 @@
 #include "file.h"
 #include "common/lib/list.h"
 
+#define DEFAULT_PWD "/home"
 #define FS_MOUNTP_SIZE 512
 typedef enum {
     FS_DEV,
