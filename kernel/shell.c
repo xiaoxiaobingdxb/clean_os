@@ -79,32 +79,42 @@ void shell_main() {
 }
 
 #define declare_cmd_func(name) int do_##name(int argc, char **argv)
+declare_cmd_func(man);
 declare_cmd_func(clear);
 declare_cmd_func(list);
 declare_cmd_func(pwd);
 declare_cmd_func(echo);
-cmd_t cmd_list[] = {
-    {
-        .name = "clear",
-        .usage = "clear the screen",
-        .func = do_clear,
-    },
-    {
-        .name = "ls",
-        .usage = "list children for dir",
-        .func = do_list,
-    },
-    {
-        .name = "pwd",
-        .usage = "show process working dir",
-        .func = do_pwd,
-    },
-    {
-        .name = "echo",
-        .usage = "show message into screen",
-        .func = do_echo,
-    },
-};
+declare_cmd_func(cat);
+cmd_t cmd_list[] = {{
+                        .name = "man",
+                        .usage = "show help for command",
+                        .func = do_man,
+                    },
+                    {
+                        .name = "clear",
+                        .usage = "clear the screen",
+                        .func = do_clear,
+                    },
+                    {
+                        .name = "ls",
+                        .usage = "list children for dir",
+                        .func = do_list,
+                    },
+                    {
+                        .name = "pwd",
+                        .usage = "show process working dir",
+                        .func = do_pwd,
+                    },
+                    {
+                        .name = "echo",
+                        .usage = "show message into screen",
+                        .func = do_echo,
+                    },
+                    {
+                        .name = "cat",
+                        .usage = "print file content",
+                        .func = do_cat,
+                    }};
 cmd_t *find_cmd(char *cmd_str) {
     size_t cmd_count = sizeof(cmd_list) / sizeof(cmd_t);
     for (cmd_t *cmd = cmd_list; cmd <= cmd_list + cmd_count; cmd++) {
@@ -118,15 +128,35 @@ cmd_t *find_cmd(char *cmd_str) {
 
 int getopt(int argc, char **argv) {}
 
+declare_cmd_func(man) {
+    if (argc <= 1) {
+        printf("please input the command you want to know\n");
+        return -1;
+    }
+    trim(argv[1]);
+    char *command = argv[1];
+    cmd_t *cmd = NULL;
+    size_t cmd_list_count = sizeof(cmd_list) / sizeof(cmd_t);
+    for (int i = 0; i < cmd_list_count; i++) {
+        cmd_t find_cmd = cmd_list[i];
+        if (memcmp(find_cmd.name, command, strlen(find_cmd.name)) == 0) {
+            cmd = &find_cmd;
+            break;
+        }
+    }
+    if (cmd == NULL) {
+        printf("command %s not found\n", command);
+        return -1;
+    }
+    printf("%s\n", cmd->usage);
+    return 0;
+}
 declare_cmd_func(clear) {
     printf("%c[2J", 0x1b);
     return 0;
 }
-declare_cmd_func(list) {
-    char *path = malloc(256);
-    if (path == NULL) {
-        return -1;
-    }
+
+error get_input_file_path(int argc, char **argv, char *path) {
     if (argc == 1 || argc > 1 && argv[1][0] != '/') {
         sys_info info;
         pid_t pid = get_pid();
@@ -144,22 +174,42 @@ declare_cmd_func(list) {
     } else {
         memcpy(path, argv[1], strlen(argv[1]));
     }
+    return 0;
+}
+declare_cmd_func(list) {
+    char *path = malloc(256);
+    if (path == NULL) {
+        goto fail;
+    }
+    error err = 0;
+    if ((err = get_input_file_path(argc, argv, path)) != 0) {
+        goto fail;
+    }
     fd_t fd = open(path, O_RDONLY);
     if (fd < 0) {
         printf("ls: %s: No such file or directory\n", path);
-        return -1;
+        err = -1;
+        goto fail;
     }
     dirent_t *dirent = malloc(sizeof(dirent_t));
     if (dirent == NULL) {
-        return -1;
+        err = -1;
+        goto fail;
     }
     while (readdir(fd, dirent) == 0) {
         printf("%d %d %s\n", dirent->child_count, dirent->size, dirent->name);
     }
-    close(fd);
-    free(dirent);
-    free(path);
-    return 0;
+fail:
+    if (fd >= 0) {
+        close(fd);
+    }
+    if (dirent != NULL) {
+        free(dirent);
+    }
+    if (path != NULL) {
+        free(path);
+    }
+    return err;
 }
 
 declare_cmd_func(pwd) {
@@ -174,4 +224,50 @@ declare_cmd_func(pwd) {
     return 0;
 }
 
-declare_cmd_func(echo) { return 0; }
+declare_cmd_func(echo) {
+    for (int i = 1; i < argc - 1; i++) {
+        printf("%s ", argv[i]);
+    }
+    if (argc > 1) {
+        printf("%s", argv[argc - 1]);
+    }
+    printf("\n");
+    return 0;
+}
+
+declare_cmd_func(cat) {
+    char *path = malloc(256);
+    if (path == NULL) {
+        return -1;
+    }
+    error err = 0;
+    if ((err = get_input_file_path(argc, argv, path)) != 0) {
+        goto fail;
+    }
+    fd_t fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        err = -1;
+        goto fail;
+    }
+    const int buf_size = 512;
+    byte_t *read_buf = malloc(buf_size);
+    memset(read_buf, 0, buf_size);
+    ssize_t read_size;
+    while ((read_size = read(fd, read_buf, buf_size)) == buf_size) {
+        printf("%s", read_buf);
+        memset(read_buf, 0, buf_size);
+    }
+    if (read_size > 0) {
+        printf("%s", read_buf);
+    }
+    printf("\n");
+    free(read_buf);
+fail:
+    if (path != NULL) {
+        free(path);
+    }
+    if (fd >= 0) {
+        close(fd);
+    }
+    return err;
+}

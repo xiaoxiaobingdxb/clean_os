@@ -607,10 +607,13 @@ error fat16_open(fs_desc_t *fs, const char *path, file_t *file) {
             break;
         }
         name = strtok_r(NULL, "/", &save_ptr);
-        size_t cluster = item->cluster_high >> 16 | item->cluster_low;
-        sector_start = fat16_data_sector_idx(bpb) +
-                       (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
-        // sector_start = get_sector_start(bpb, item);
+        // size_t cluster = item->cluster_high >> 16 | item->cluster_low;
+        // sector_start = fat16_data_sector_idx(bpb) +
+        //                (cluster - CLUSTER_START) * bpb->sectors_per_cluster;
+        sector_start = get_sector_start(bpb, item);
+        if (name == NULL) {
+            break;
+        }
     }
     file->node_sector_idx = sector_start;
     if (item) {
