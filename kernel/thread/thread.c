@@ -7,7 +7,7 @@
 #include "common/lib/string.h"
 #include "common/tool/lib.h"
 #include "process.h"
-#include "timer.h"
+#include "../time/timer.h"
 #include "../fs/fs.h"
 
 list ready_tasks;
@@ -155,7 +155,7 @@ void schedule() {
 }
 
 void init_task() {
-    init_timer();
+    init_schedule_timer();
     init_list(&ready_tasks);
     init_list(&all_tasks);
     init_pid_alloc();

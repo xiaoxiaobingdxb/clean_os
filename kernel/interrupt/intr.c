@@ -4,6 +4,7 @@
 #include "err.h"
 #include "idt.h"
 #include "../syscall/syscall_kernel.h"
+#include "../time/pit.h"
 
 #define PIC1 0x20 /* IO base address for master PIC */
 #define PIC2 0xA0 /* IO base address for slave PIC */
@@ -62,23 +63,6 @@ void pic_init() {
 
     outb(PIC1_DATA, a1);  // restore saved masks.
     outb(PIC2_DATA, a2);
-}
-
-#define PIT_OSC_FREQ 1193182
-#define OS_TICK_MS 10
-
-#define PIT_CHANNEL0_DATA_PORT 0x40
-#define PIT_COMMAND_MODE_PORT 0x43
-
-#define PIT_CHANNLE0 (0 << 6)
-#define PIT_LOAD_LOHI (3 << 4)
-#define PIT_MODE0 (3 << 1)
-void pit_init() {
-    uint32_t reload_count = PIT_OSC_FREQ / (1000.0 / OS_TICK_MS);
-
-    outb(PIT_COMMAND_MODE_PORT, PIT_CHANNLE0 | PIT_LOAD_LOHI | PIT_MODE0);
-    outb(PIT_CHANNEL0_DATA_PORT, reload_count & 0xFF);
-    outb(PIT_CHANNEL0_DATA_PORT, (reload_count >> 8) & 0xFF);
 }
 
 extern intr_desc idt[INT_DESC_CNT];

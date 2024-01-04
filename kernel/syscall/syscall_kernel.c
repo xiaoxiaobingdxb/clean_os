@@ -7,6 +7,7 @@
 #include "../thread/thread.h"
 #include "common/tool/math.h"
 #include "syscall_no.h"
+#include "../time/time.h"
 
 #define SYSCALL_SIZE 512
 #define SYSCALL_INTR_NO 0x80
@@ -58,6 +59,8 @@ void init_syscall() {
     syscall_register(SYSCALL_link, sys_link);
     syscall_register(SYSCALL_symlink, sys_symlink);
     syscall_register(SYSCALL_unlink, sys_link);
+
+    syscall_register(SYSCALL_timestamp, sys_timestamp);
 
     make_intr(SYSCALL_INTR_NO, IDT_DESC_ATTR_DPL3, intr_entry_syscall);
 }

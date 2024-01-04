@@ -35,6 +35,8 @@ enum syscall_no_ {
     SYSCALL_link,
     SYSCALL_symlink,
     SYSCALL_unlink,
+
+    SYSCALL_timestamp,
 };
 
 #endif

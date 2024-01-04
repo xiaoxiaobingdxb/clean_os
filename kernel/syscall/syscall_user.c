@@ -160,3 +160,7 @@ error symlink(const char *new_path, const char *old_path) {
 error unlink(const char *path) {
     return syscall1(SYSCALL_unlink, path);
 }
+
+void timestamp(const timespec_t *timestamp) {
+    syscall1(SYSCALL_timestamp, timestamp);
+}

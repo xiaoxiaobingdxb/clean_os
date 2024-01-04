@@ -40,6 +40,7 @@ void deprecated_clone(const char *name, uint32_t priority, void *func,
                       void *func_arg);
 
 #define SYS_INFO_MEM (1 << 0)
+#define SYS_INFO_CPU_INFO (1 << 1)
 int sysinfo(uint32_t pid, sys_info *info, int flags);
 int ps(ps_info *ps, size_t count);
 
@@ -100,5 +101,7 @@ error rmdir(const char *path);
 error link(const char *new_path, const char *old_path);
 error symlink(const char *new_path, const char *old_path);
 error unlink(const char *path);
+
+void timestamp(const timespec_t *timestamp);
 
 #endif

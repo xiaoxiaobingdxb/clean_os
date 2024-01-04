@@ -1,11 +1,14 @@
 #include "./stdio.h"
 
+#include "../tool/math.h"
 #include "../types/basic.h"
 #include "./string.h"
 
-void itoa(uint32_t value, char** buf_ptr_addr, uint8_t base) {
-    uint32_t m = value % base;
-    uint32_t i = value / base;
+void itoa(uint64_t value, char** buf_ptr_addr, uint32_t base) {
+    uint32_t m;
+    uint64_t i = div_u64_rem(value, base, &m);
+    // uint32_t m = value % base;
+    // uint32_t i = value / base;
     if (i) {
         itoa(i, buf_ptr_addr, base);
     }
@@ -51,10 +54,35 @@ int vsprintf(char* str, const char* format, va_list ap) {
             itoa(arg_int, &buf_ptr, 10);
             index_char = *(++index_ptr);
             break;
-
         case 'x':
             arg_int = va_arg(ap, int);
             itoa(arg_int, &buf_ptr, 16);
+            index_char = *(++index_ptr);
+            break;
+        case 'l':
+            signed long long arg_long = va_arg(ap, signed long long);
+            ap += 4;
+            if (arg_long < 0) {
+                arg_long = 0 - arg_long;
+                *buf_ptr++ = '-';
+            }
+            // uint32_t high = arg_long >> 32;
+            // uint32_t low = arg_long & 0xffffffff;
+            // if (high > 0) {
+            //     itoa(high, &buf_ptr, 10);
+            // }
+            // const size_t int32_len = 10;
+            // char tmp[int32_len];
+            // memset(tmp, 0, int32_len);
+            // char* p = tmp;
+            // itoa(low, &p, 10);
+            // size_t len = strlen(tmp);
+            // len = min(len, int32_len);
+            // memset(buf_ptr, '0', int32_len - len);
+            // buf_ptr += int32_len - len;
+            // memcpy(buf_ptr, tmp, len);
+            // buf_ptr += len;
+            itoa(arg_long, &buf_ptr, 10);
             index_char = *(++index_ptr);
             break;
         }

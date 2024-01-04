@@ -288,6 +288,9 @@ int process_sysinfo(uint32_t pid, sys_info *info, int flags) {
         info->user_phy_mem_used = user_phy_page_count * MEM_PAGE_SIZE;
     }
     memcpy(info->pwd, task->pwd, sizeof(task->pwd));
+    if (flags & SYS_INFO_CPU_INFO) {
+        info->cpu_info.rdtscp = get_rdtsc();
+    }
     return 0;
 }
 

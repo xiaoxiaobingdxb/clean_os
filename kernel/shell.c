@@ -85,36 +85,44 @@ declare_cmd_func(list);
 declare_cmd_func(pwd);
 declare_cmd_func(echo);
 declare_cmd_func(cat);
-cmd_t cmd_list[] = {{
-                        .name = "man",
-                        .usage = "show help for command",
-                        .func = do_man,
-                    },
-                    {
-                        .name = "clear",
-                        .usage = "clear the screen",
-                        .func = do_clear,
-                    },
-                    {
-                        .name = "ls",
-                        .usage = "list children for dir",
-                        .func = do_list,
-                    },
-                    {
-                        .name = "pwd",
-                        .usage = "show process working dir",
-                        .func = do_pwd,
-                    },
-                    {
-                        .name = "echo",
-                        .usage = "show message into screen",
-                        .func = do_echo,
-                    },
-                    {
-                        .name = "cat",
-                        .usage = "print file content",
-                        .func = do_cat,
-                    }};
+declare_cmd_func(date);
+cmd_t cmd_list[] = {
+    {
+        .name = "man",
+        .usage = "show help for command",
+        .func = do_man,
+    },
+    {
+        .name = "clear",
+        .usage = "clear the screen",
+        .func = do_clear,
+    },
+    {
+        .name = "ls",
+        .usage = "list children for dir",
+        .func = do_list,
+    },
+    {
+        .name = "pwd",
+        .usage = "show process working dir",
+        .func = do_pwd,
+    },
+    {
+        .name = "echo",
+        .usage = "show message into screen",
+        .func = do_echo,
+    },
+    {
+        .name = "cat",
+        .usage = "print file content",
+        .func = do_cat,
+    },
+    {
+        .name = "date",
+        .usage = "display or set date and time",
+        .func = do_date,
+    },
+};
 cmd_t *find_cmd(char *cmd_str) {
     size_t cmd_count = sizeof(cmd_list) / sizeof(cmd_t);
     for (cmd_t *cmd = cmd_list; cmd <= cmd_list + cmd_count; cmd++) {
@@ -270,4 +278,19 @@ fail:
         close(fd);
     }
     return err;
+}
+
+declare_cmd_func(date) {
+    timespec_t timespec;
+    memset(&timespec, 0, sizeof(timespec));
+    timestamp(&timespec);
+    printf("unix:%l %l\n", timespec.tv_sec, timespec.tv_nsec);
+    pid_t pid = get_pid();
+    if (pid >= 0) {
+        sys_info info;
+        if (!sysinfo(pid, &info, SYS_INFO_CPU_INFO)) {
+            printf("cpu:%l\n", info.cpu_info.rdtscp);
+        }
+    }
+    return 0;
 }

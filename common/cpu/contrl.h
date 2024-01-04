@@ -27,9 +27,7 @@ static inline eflags_t enter_intr_protect() {
     return state;
 }
 
-static inline void leave_intr_protect(eflags_t state) {
-    write_elfags(state);
-}
+static inline void leave_intr_protect(eflags_t state) { write_elfags(state); }
 
 static inline uint8_t inb(uint16_t port) {
     uint8_t rv;
@@ -93,6 +91,18 @@ static inline void hlt() { __asm__ __volatile__("hlt"); }
 static inline void die(int code) {
     for (;;)
         ;
+}
+
+static inline uint64_t get_rdtsc() {
+    uint32_t a, d;
+    __asm__ __volatile__("rdtsc\n" : "=a"(a), "=d"(d));
+    return ((uint64_t)d << 32) | a;
+}
+
+static inline uint64_t get_rdtscp() {
+    uint32_t a, d;
+    __asm__ __volatile__("rdtscp\n" : "=a"(a), "=d"(d));
+    return ((uint64_t)d << 32) | a;
 }
 
 #endif
