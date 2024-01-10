@@ -3,9 +3,9 @@
 #include "../device/device.h"
 #include "../device/disk/disk.h"
 #include "../syscall/syscall_user.h"
+#include "../thread/thread.h"
 #include "common/lib/string.h"
 #include "common/tool/lib.h"
-#include "../thread/thread.h"
 
 #define FS_TABLE_SIZE 10
 fs_desc_t fs_table[FS_TABLE_SIZE];
@@ -17,10 +17,11 @@ void init_fs_table() {
         pushr(&free_fs, &fs_table[i].node);
     }
     init_list(&mounted_fs);
-    extern fs_ops_t devfs_ops, fat16_ops;
+    extern fs_ops_t devfs_ops, fat16_ops, ext2_ops;
     memset(&fs_ops_table, 0, sizeof(fs_ops_table));
     fs_ops_table[FS_DEV] = &devfs_ops;
     fs_ops_table[FS_FAT16] = &fat16_ops;
+    fs_ops_table[FS_EXT2] = &ext2_ops;
 }
 void init_fs() {
     init_fs_table();
@@ -28,6 +29,7 @@ void init_fs() {
 
     mount(FS_DEV, "/dev", DEV_TTY, 0);  // mount default /dev
     mount(FS_FAT16, "/home", DEV_DISK, 0x11);
+    mount(FS_EXT2, "/ext2", DEV_DISK, 0x20);
 }
 
 bool mounted_fs_visitor_by_path(list_node *node, void *arg) {

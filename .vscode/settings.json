@@ -93,7 +93,9 @@
         "map": "c",
         "set": "c",
         "unordered_set": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "byte.h": "c",
+        "memory_resource": "c"
     }
     
 }

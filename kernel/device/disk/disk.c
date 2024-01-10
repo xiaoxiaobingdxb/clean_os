@@ -11,6 +11,7 @@
 
 // @see https://wiki.osdev.org/ATA_PIO_Mode
 #define PRIMARY_PORT_BASE 0x1F0
+#define SECONDARY_PORT_BASE 0x170
 enum {
     PORT_DATA = 0,
     PORT_ERR,
@@ -40,7 +41,7 @@ enum {
 #define COMMAND_READ 0x24
 #define COMMAND_WRITE 0x34
 
-#define DISK_COUNT 2
+#define DISK_COUNT 3
 disk_t disks[DISK_COUNT];
 
 void ata_cmd(disk_t *disk, uint32_t sector_start, uint32_t sector_count,
@@ -190,7 +191,10 @@ void init_disk() {
         disk_t *disk = disks + i;
         sprintf(disk->name, "sd%c", 'a' + i);
         disk->port_base = PRIMARY_PORT_BASE;
-        disk->drive = i;
+        if (i >= 2) {
+            disk->port_base = SECONDARY_PORT_BASE;
+        }
+        disk->drive = i % 2;
         detect_disk(disk);
     }
 

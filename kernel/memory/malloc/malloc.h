@@ -49,4 +49,11 @@ void *memalign(size_t aligment, size_t size);
 */
 void *valloc(size_t size);
 
+/**
+ * @brief alloc from kernel memory space
+*/
+void* vmalloc(size_t size);
+
+void vfree(void *ptr);
+
 #endif

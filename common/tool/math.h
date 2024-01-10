@@ -22,6 +22,18 @@ static inline uint32_t pow(uint32_t x, uint32_t y) {
     return ret;
 }
 
+static inline bool is_pow(uint32_t x, uint32_t y) {
+    if (x == 1) {
+        return true;
+    }
+    while ((x /= y) != 1) {
+        if (x == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 #define min(a, b) (a < b ? a : b)
 #define max(a, b) (a > b ? a : b)
 
@@ -62,8 +74,8 @@ static inline uint64_t div_u64_rem(uint64_t dividend, uint32_t divisor,
         upper %= divisor;
     }
     __asm__("divl %2"
-        : "=a"(d.v32[0]), "=d"(*remainder)
-        : "rm"(divisor), "0"(d.v32[0]), "1"(upper));
+            : "=a"(d.v32[0]), "=d"(*remainder)
+            : "rm"(divisor), "0"(d.v32[0]), "1"(upper));
     return d.v64;
 }
 #define div_u64_rem div_u64_rem

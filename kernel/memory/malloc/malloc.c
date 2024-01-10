@@ -54,13 +54,12 @@ void init_malloc() {
     __malloc_init = true;
     init_malloc_desc(main_state.descs);
 }
-
-void *malloc(size_t size) {
+void *_malloc(size_t size, void*(*allocator)(size_t)) {
     init_malloc();
     if (size > main_state.descs[MEM_BLOCK_CNT - 1].block_size) {
         size = up2(size, MEM_PAGE_SIZE);
         uint32_t paeg_count =  size / MEM_PAGE_SIZE;
-        mem_arena *a = (mem_arena*)mmap_anonymous(size);
+        mem_arena *a = (mem_arena*)allocator(size);
         memset(a, 0, size);
         a->desc == NULL;
         a->free_cnt = paeg_count;
@@ -75,7 +74,7 @@ void *malloc(size_t size) {
     }
     mem_block *b;
     if (main_state.descs[idx].free_blocks.size == 0) {
-        mem_arena *arena = (mem_arena *)mmap_anonymous(MEM_PAGE_SIZE);
+        mem_arena *arena = (mem_arena *)allocator(MEM_PAGE_SIZE);
         memset(arena, 0, sizeof(arena));
         arena->desc = &main_state.descs[idx];
         arena->free_cnt = main_state.descs[idx].blocks_per_arena;
@@ -92,8 +91,11 @@ void *malloc(size_t size) {
     arean->free_cnt--;
     return (void *)b;
 }
+void *malloc(size_t size) {
+    return _malloc(size, mmap_anonymous);
+}
 
-void free(void *ptr) {
+void _free(void *ptr, void(*unallocator)(void*, size_t)) {
     // move this block to free_blocks
     mem_block *block = (mem_block *)ptr;
     mem_arena *arena = block2arena(block);
@@ -111,6 +113,28 @@ void free(void *ptr) {
             mem_block *b = arena2block(arena, i);
             remove(&arena->desc->free_blocks, &b->mem_ele);
         }
-        munmap((void*)arena, MEM_PAGE_SIZE);
+        unallocator((void*)arena, MEM_PAGE_SIZE);
     }
+}
+
+void free(void *ptr) {
+    _free(ptr, munmap);
+}
+
+void* _alloc_kernel_mem(size_t size) {
+    int page_count = up2(size, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
+    return (void*)alloc_kernel_mem(page_count);
+}
+
+void *vmalloc(size_t size) {
+    return _malloc(size, _alloc_kernel_mem);
+}
+
+void _unalloc_kernel_mem(void *ptr, size_t size) {
+    int page_count = up2(size, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
+    unalloc_kernel_mem((uint32_t)ptr, page_count);
+}
+
+void vfree(void *ptr) {
+    _free(ptr, _unalloc_kernel_mem);
 }
