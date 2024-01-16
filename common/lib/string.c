@@ -19,8 +19,8 @@ void memcpy(const void *dst, const void *src, size_t size) {
 }
 
 const char *strcat(const char *dst, const char *src) {
-    char *str = (char *)dst;
     char *src_ = (char *)src;
+    char *str = (char *)dst;
     while (*str++)
         ;
     --str;
@@ -40,6 +40,10 @@ int memcmp(const void *a, const void *b, size_t size) {
         b_++;
     }
     return 0;
+}
+
+size_t strcmp(const char *a, const char *b) {
+    return memcmp(a, b ,min(strlen(a), strlen(b)));
 }
 
 size_t strlen(const char *str) {

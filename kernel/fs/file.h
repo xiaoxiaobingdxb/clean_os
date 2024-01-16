@@ -10,7 +10,7 @@ typedef int mode_t;
 #define FILE_NAME_SIZE 64
 struct _fs_desc_t;
 typedef enum {
-    UNKNOWN,
+    FILE_UNKNOWN,
     FILE_TTY,
     FILE_FILE,
     FILE_DIR,
@@ -30,6 +30,7 @@ typedef struct {
     uint32_t block_start;
     uint32_t block_cur;
     size_t node_sector_idx;
+    void *data;
 } file_t;
 
 void init_file_table();

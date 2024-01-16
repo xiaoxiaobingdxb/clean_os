@@ -42,65 +42,102 @@ void init_malloc_desc(mem_block_desc *descs) {
 
 typedef struct {
     mem_block_desc descs[MEM_BLOCK_CNT];
+    bool init;
+    void *(*allocator)(size_t);
+    void (*unallocator)(void *, size_t);
 } malloc_state;
 
-static malloc_state main_state;
-static bool __malloc_init;
+malloc_state *main_state = NULL;
+malloc_state *kernel_state = NULL;
 
-void init_malloc() {
-    if (__malloc_init) {
+void *_alloc_kernel_mem(size_t size);
+void _unalloc_kernel_mem(void *ptr, size_t size);
+
+void _init_malloc(malloc_state *state) {
+    if (state->init) {
         return;
     }
-    __malloc_init = true;
-    init_malloc_desc(main_state.descs);
+    state->init = true;
+    init_malloc_desc(state->descs);
 }
-void *_malloc(size_t size, void*(*allocator)(size_t)) {
-    init_malloc();
-    if (size > main_state.descs[MEM_BLOCK_CNT - 1].block_size) {
+
+void init_malloc(bool isKernel) {
+    malloc_state *state;
+    if (isKernel) {
+        if (!kernel_state) {
+            kernel_state =
+                (malloc_state *)_alloc_kernel_mem(sizeof(malloc_state));
+            memset(kernel_state, 0, sizeof(malloc_state));
+            kernel_state->init = false;
+            kernel_state->allocator = _alloc_kernel_mem;
+            kernel_state->unallocator = _unalloc_kernel_mem;
+        }
+        state = kernel_state;
+    } else {
+        if (!main_state) {
+            main_state = (malloc_state *)mmap_anonymous(sizeof(malloc_state));
+            memset(main_state, 0, sizeof(malloc_state));
+            main_state->init = false;
+            main_state->allocator = mmap_anonymous;
+            main_state->unallocator = munmap;
+        }
+        state = main_state;
+    }
+    _init_malloc(state);
+}
+
+void *_malloc(size_t size, bool isKernel) {
+    init_malloc(isKernel);
+    malloc_state *state = main_state;
+    if (isKernel) {
+        state = kernel_state;
+    }
+    if (size > state->descs[MEM_BLOCK_CNT - 1].block_size) {
         size = up2(size, MEM_PAGE_SIZE);
-        uint32_t paeg_count =  size / MEM_PAGE_SIZE;
-        mem_arena *a = (mem_arena*)allocator(size);
+        uint32_t paeg_count = size / MEM_PAGE_SIZE;
+        mem_arena *a = (mem_arena *)state->allocator(size);
         memset(a, 0, size);
         a->desc == NULL;
         a->free_cnt = paeg_count;
         a->large = true;
-        return (void*)((uint32_t)a + sizeof(mem_arena));
+        return (void *)((uint32_t)a + sizeof(mem_arena));
     }
     int idx;
     for (idx = 0; idx < MEM_BLOCK_CNT; idx++) {
-        if (size <= main_state.descs[idx].block_size) {
+        if (size <= state->descs[idx].block_size) {
             break;
         }
     }
     mem_block *b;
-    if (main_state.descs[idx].free_blocks.size == 0) {
-        mem_arena *arena = (mem_arena *)allocator(MEM_PAGE_SIZE);
+    if (state->descs[idx].free_blocks.size == 0) {
+        mem_arena *arena = (mem_arena *)state->allocator(MEM_PAGE_SIZE);
         memset(arena, 0, sizeof(arena));
-        arena->desc = &main_state.descs[idx];
-        arena->free_cnt = main_state.descs[idx].blocks_per_arena;
+        arena->desc = &state->descs[idx];
+        arena->free_cnt = state->descs[idx].blocks_per_arena;
         arena->large = false;
         for (int i = 0; i < arena->free_cnt; i++) {
             b = arena2block(arena, i);
             pushr(&arena->desc->free_blocks, &b->mem_ele);
         }
     }
-    list_node *b_node = popl(&main_state.descs[idx].free_blocks);
+    list_node *b_node = popl(&state->descs[idx].free_blocks);
     b = tag2entry(mem_block, mem_ele, b_node);
-    memset(b, 0, main_state.descs[idx].block_size);
+    memset(b, 0, state->descs[idx].block_size);
     mem_arena *arean = block2arena(b);
     arean->free_cnt--;
     return (void *)b;
 }
-void *malloc(size_t size) {
-    return _malloc(size, mmap_anonymous);
-}
+void *malloc(size_t size) { return _malloc(size, false); }
 
-void _free(void *ptr, void(*unallocator)(void*, size_t)) {
+void _free(void *ptr, void (*unallocator)(void *, size_t)) {
+    if (ptr == NULL) {
+        return;
+    }
     // move this block to free_blocks
     mem_block *block = (mem_block *)ptr;
     mem_arena *arena = block2arena(block);
     if (arena->large) {
-        munmap((void*)arena, arena->free_cnt * MEM_PAGE_SIZE);
+        munmap((void *)arena, arena->free_cnt * MEM_PAGE_SIZE);
         return;
     }
     pushr(&arena->desc->free_blocks, &block->mem_ele);
@@ -113,28 +150,22 @@ void _free(void *ptr, void(*unallocator)(void*, size_t)) {
             mem_block *b = arena2block(arena, i);
             remove(&arena->desc->free_blocks, &b->mem_ele);
         }
-        unallocator((void*)arena, MEM_PAGE_SIZE);
+        unallocator((void *)arena, MEM_PAGE_SIZE);
     }
 }
 
-void free(void *ptr) {
-    _free(ptr, munmap);
-}
+void free(void *ptr) { _free(ptr, munmap); }
 
-void* _alloc_kernel_mem(size_t size) {
+void *_alloc_kernel_mem(size_t size) {
     int page_count = up2(size, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
-    return (void*)alloc_kernel_mem(page_count);
+    return (void *)alloc_kernel_mem(page_count);
 }
 
-void *vmalloc(size_t size) {
-    return _malloc(size, _alloc_kernel_mem);
-}
+void *vmalloc(size_t size) { return _malloc(size, true); }
 
 void _unalloc_kernel_mem(void *ptr, size_t size) {
     int page_count = up2(size, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
     unalloc_kernel_mem((uint32_t)ptr, page_count);
 }
 
-void vfree(void *ptr) {
-    _free(ptr, _unalloc_kernel_mem);
-}
+void vfree(void *ptr) { _free(ptr, _unalloc_kernel_mem); }

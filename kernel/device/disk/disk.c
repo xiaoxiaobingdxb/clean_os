@@ -23,6 +23,7 @@ enum {
     PORT_STATUS_COMMAND,
 };
 #define disk_port(disk, port) (disk->port_base + port)
+#define disk_pio(disk) (disk == MASTER ? 0xE0 : 0xF0)
 #define disk_drive(disk) ((disk->drive << 4) | 0xE0)  // 0b11100000)
 
 enum {
@@ -46,7 +47,8 @@ disk_t disks[DISK_COUNT];
 
 void ata_cmd(disk_t *disk, uint32_t sector_start, uint32_t sector_count,
              uint8_t cmd) {
-    outb(disk_port(disk, PORT_DRIVE), disk_drive(disk));  // set drive
+    outb(disk_port(disk, PORT_DRIVE),
+         disk_drive(disk) | (sector_start >> 24 & 0x0f));  // set drive
 
     outb(disk_port(disk, PORT_SECTOR_COUNT),
          (uint8_t)(sector_count >> 8));  // sector_count:8-head
@@ -182,8 +184,11 @@ error detect_disk(disk_t *disk) {
 }
 
 segment_t segment;
-void disk_hander(uint32_t intr_no) { 
-    segment_wakeup(&segment, NULL);
+bool has_read = false;
+void disk_hander(uint32_t intr_no) {
+    if (has_read) {
+        segment_wakeup(&segment, NULL);
+    }
 }
 
 void init_disk() {
@@ -200,6 +205,7 @@ void init_disk() {
 
     init_segment(&segment, 0);
     register_intr_handler(INTR_NO_DISK, disk_hander);
+    register_intr_handler(INTR_NO_DISK2, disk_hander);
 }
 
 error disk_open(device_t *dev) {
@@ -230,13 +236,14 @@ ssize_t disk_write(device_t *dev, uint32_t addr, const byte_t *buf,
     if ((disk = part->disk) == NULL) {
         return -2;
     }
+    has_read = true;
     ata_cmd(disk, addr + part->sector_start, size, COMMAND_WRITE);
     ssize_t write_size = -1;
     for (int i = 0; i < size; i++, buf += disk->sector_size * i) {
         if ((write_size = ata_write(disk, buf, disk->sector_size)) <= 0) {
             return write_size;
         }
-        
+
         segment_wait(&segment, NULL);
         error err = ata_wait(disk);
         if (err) {
@@ -254,6 +261,7 @@ ssize_t disk_read(device_t *dev, uint32_t addr, byte_t *buf, size_t size) {
     if ((disk = part->disk) == NULL) {
         return -2;
     }
+    has_read = true;
     ata_cmd(disk, addr + part->sector_start, size, COMMAND_READ);
     for (int i = 0; i < size; i++, buf += disk->sector_size * i) {
         segment_wait(&segment, NULL);

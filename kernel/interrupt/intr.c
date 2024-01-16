@@ -1,10 +1,10 @@
 #include "intr.h"
 
+#include "../syscall/syscall_kernel.h"
+#include "../time/pit.h"
 #include "common/cpu/contrl.h"
 #include "err.h"
 #include "idt.h"
-#include "../syscall/syscall_kernel.h"
-#include "../time/pit.h"
 
 #define PIC1 0x20 /* IO base address for master PIC */
 #define PIC2 0xA0 /* IO base address for slave PIC */
@@ -61,8 +61,8 @@ void pic_init() {
     outb(PIC2_DATA, ICW4_8086);
     io_wait();
 
-    outb(PIC1_DATA, a1);  // restore saved masks.
-    outb(PIC2_DATA, a2);
+    outb(PIC1_DATA, 0);  // restore saved masks.
+    outb(PIC2_DATA, 0);
 }
 
 extern intr_desc idt[INT_DESC_CNT];
