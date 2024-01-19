@@ -1,5 +1,6 @@
 #include "../device/disk/disk.h"
 #include "../memory/malloc/mallocator.h"
+#include "common/lib/bitmap.h"
 #include "common/lib/string.h"
 #include "common/tool/log.h"
 #include "common/tool/math.h"
@@ -66,6 +67,9 @@ typedef struct {
     uint8_t unused[14];
 } block_group_desc_t;
 
+#define DIRECT_BLOCK_COUNT 12
+#define INDIRECT_BLOCK_COUNT 3
+#define ROOT_INODE 2
 typedef struct {
     uint16_t type_permission;
     uint16_t uid;
@@ -79,8 +83,8 @@ typedef struct {
     uint32_t disk_sector_count;
     uint32_t flags;
     uint32_t os_spec1;
-    uint32_t direct_blocks[12];
-    uint32_t indirect_blocks[3];
+    uint32_t direct_blocks[DIRECT_BLOCK_COUNT];
+    uint32_t indirect_blocks[INDIRECT_BLOCK_COUNT];
     uint32_t generation_num;
     uint32_t ext_attr_block;
     uint32_t size32_63;
@@ -93,6 +97,11 @@ typedef struct {
     super_block_ext_t *super_block_ext;
     block_group_desc_t *block_groups;
 } ext2_desc;
+
+typedef struct {
+    inode_t *inode;
+    size_t inode_idx;
+} file_data_t;
 
 typedef struct {
     uint32_t inode;
@@ -224,6 +233,12 @@ ssize_t block_read(dev_id_t dev_id, size_t block_size, void *buf,
                        block_count * block_size / SECTOR_SIZE);
 }
 
+ssize_t block_write(dev_id_t dev_id, size_t block_size, void *buf,
+                    off_t block_start, size_t block_count) {
+    return device_write(dev_id, block_start * block_size / SECTOR_SIZE, buf,
+                        block_count * block_size / SECTOR_SIZE);
+}
+
 error ext2_mount(fs_desc_t *fs, int major, int minor) {
     dev_id_t dev_id = device_open(major, minor, NULL);
     if (dev_id < 0) {
@@ -298,7 +313,6 @@ void ext2_unmount(fs_desc_t *fs) {
     if (fs->data) {
         ext2_desc *desc = (ext2_desc *)fs->data;
         kernel_mallocator.free(desc->super_block);
-        kernel_mallocator.free(desc->super_block_ext);
         kernel_mallocator.free(desc->block_groups);
         kernel_mallocator.free(desc);
     }
@@ -307,48 +321,62 @@ void ext2_unmount(fs_desc_t *fs) {
     }
 }
 
-error open_inode(dev_id_t dev_id, ext2_desc *desc, uint32_t inode_idx,
-                 inode_t *inode) {
+error rw_inode(dev_id_t dev_id, ext2_desc *desc, uint32_t inode_idx,
+               inode_t *inode, bool write) {
     inode_idx--;
     off_t group_idx = inode_idx / desc->super_block->inodes_per_group;
     inode_idx = inode_idx % desc->super_block->inodes_per_group;
 
-    size_t inode_block_idx = inode_idx * desc->super_block_ext->inode_size /
-                             kb_size(desc->super_block->block_size_kb);
+    size_t block_size = kb_size(desc->super_block->block_size_kb);
+
+    size_t inode_block_idx =
+        inode_idx * desc->super_block_ext->inode_size / block_size;
     inode_block_idx += desc->block_groups[group_idx].inode_table;
-    size_t buf_size = max(desc->super_block_ext->inode_size,
-                          kb_size(desc->super_block->block_size_kb));
+    size_t buf_size = max(desc->super_block_ext->inode_size, block_size);
     byte_t *inode_buf = (byte_t *)kernel_mallocator.malloc(buf_size);
     if (!inode_buf) {
         return -1;
     }
-    memset(inode_buf, 0, buf_size);
+    uint32_t inode_offset =
+        inode_idx * desc->super_block_ext->inode_size % block_size;
+    error err = 0;
     ssize_t read_size =
-        block_read(dev_id, kb_size(desc->super_block->block_size_kb), inode_buf,
-                   inode_block_idx, 1);
-    if (read_size = 0) {
-        kernel_mallocator.free(inode_buf);
-        return -1;
+        block_read(dev_id, block_size, inode_buf, inode_block_idx, 1);
+    if (read_size <= 0) {
+        err = -1;
+        goto finally;
     }
-    uint32_t inode_offset = inode_idx * desc->super_block_ext->inode_size %
-                            kb_size(desc->super_block->block_size_kb);
-    memcpy(inode, inode_buf + inode_offset, min(buf_size, sizeof(inode_t)));
-    kernel_mallocator.free(inode_buf);
-    return 0;
+    if (write) {
+        memcpy(inode_buf + inode_offset, inode, min(buf_size, sizeof(inode_t)));
+        ssize_t write_size =
+            block_write(dev_id, block_size, inode_buf, inode_block_idx, 1);
+        if (write_size <= 0) {
+            err = -1;
+            goto finally;
+        }
+    } else {
+        memcpy(inode, inode_buf + inode_offset, min(buf_size, sizeof(inode_t)));
+    }
+finally:
+    if (inode_buf) {
+        kernel_mallocator.free(inode_buf);
+    }
+    return err;
 }
 
-error get_sub_inode(fs_desc_t *fs, ext2_desc *desc, inode_t *parent, char *name,
-                    inode_t *inode) {
+ssize_t get_sub_inode(fs_desc_t *fs, ext2_desc *desc, inode_t *parent,
+                      char *name, inode_t *inode) {
     dir_entry_t *entries =
         kernel_mallocator.malloc(kb_size(desc->super_block->block_size_kb));
     if (!entries) {
         return -1;
     }
-    error err = -1;
-    for (int i = 0; i < 12 && parent->direct_blocks[i] > 0; i++) {
+    ssize_t idx = -1;
+    for (int i = 0; i < DIRECT_BLOCK_COUNT && parent->direct_blocks[i] > 0;
+         i++) {
         if (block_read(fs->dev_id, kb_size(desc->super_block->block_size_kb),
                        entries, parent->direct_blocks[i], 1) <= 0) {
-            err = -1;
+            idx = -1;
             goto finally;
         }
         for (dir_entry_t *entry = entries;
@@ -358,14 +386,17 @@ error get_sub_inode(fs_desc_t *fs, ext2_desc *desc, inode_t *parent, char *name,
             char *get_name = dir_entry_name(entry);
             if (memcmp(name, get_name,
                        min(strlen(name), dir_entry_name_len(entry))) == 0) {
-                err = open_inode(fs->dev_id, desc, entry->inode, inode);
+                idx = rw_inode(fs->dev_id, desc, entry->inode, inode, false);
+                if (idx == 0) {
+                    idx = entry->inode;
+                }
                 goto finally;
             }
         }
     }
 finally:
     kernel_mallocator.free(entries);
-    return err;
+    return idx;
 }
 
 error extract_file(file_t *file, inode_t *inode) {
@@ -389,12 +420,17 @@ error ext2_open(fs_desc_t *fs, const char *path, file_t *file) {
     error err;
     inode_t *root_inode =
         kernel_mallocator.malloc(desc->super_block_ext->inode_size);
-    memset(root_inode, 0, desc->super_block_ext->inode_size);
-    if ((err = open_inode(fs->dev_id, desc, 2, root_inode)) != 0) {
-        return err;
+    if (!root_inode) {
+        err = -1;
+        goto open_fail;
+    }
+    if ((err = rw_inode(fs->dev_id, desc, ROOT_INODE, root_inode, false)) !=
+        0) {
+        goto open_fail;
     }
     inode_t *inode = root_inode;
     char *name = NULL;
+    ssize_t inode_idx = ROOT_INODE;
     if (strlen(path) == 0 || !strcmp(path, "/") || !strcmp(path, "/.") ||
         !strcmp(path, "/..")) {  // root
         memcpy(file->name, "/", 1);
@@ -404,18 +440,37 @@ error ext2_open(fs_desc_t *fs, const char *path, file_t *file) {
         while (str != NULL) {
             memcpy(file->name, str, strlen(str));
             inode_t tmp;
-            if ((err = get_sub_inode(fs, desc, inode, str, &tmp)) != 0) {
-                return err;
+            if ((inode_idx = get_sub_inode(fs, desc, inode, str, &tmp)) < 0) {
+                err = inode_idx;
+                goto open_fail;
             }
             memcpy(inode, &tmp, sizeof(inode_t));
             str = strtok_r(NULL, "/", &save_ptr);
         }
     }
     extract_file(file, inode);
-    file->data = inode;
+    file_data_t *file_data =
+        (file_data_t *)kernel_mallocator.malloc(sizeof(file_data_t));
+    if (!file_data) {
+        err = -1;
+        goto open_fail;
+    }
+    file_data->inode = inode;
+    file_data->inode_idx = inode_idx;
+    file->data = file_data;
+    if (file->mode & O_APPEND) {
+        file->pos = file->size;
+    }
     return 0;
+open_fail:
+    if (root_inode) {
+        kernel_mallocator.free(root_inode);
+    }
+    if (file_data) {
+        kernel_mallocator.free(file_data);
+    }
+    return err;
 }
-error ext2_ioctl(file_t *file, int cmd, int arg0, int arg1) {}
 ssize_t ext2_read(file_t *file, byte_t *buf, size_t size) {
     if (file->type != FILE_FILE || file->data == NULL || file->desc == NULL) {
         return -1;
@@ -426,7 +481,8 @@ ssize_t ext2_read(file_t *file, byte_t *buf, size_t size) {
     }
     ext2_desc *desc = (ext2_desc *)fs->data;
     size_t block_size = kb_size(desc->super_block->block_size_kb);
-    inode_t *inode = (inode_t *)file->data;
+    file_data_t *file_data = (file_data_t *)file->data;
+    inode_t *inode = file_data->inode;
     byte_t *read_buf = kernel_mallocator.malloc(block_size);
     if (!read_buf) {
         return -1;
@@ -436,7 +492,8 @@ ssize_t ext2_read(file_t *file, byte_t *buf, size_t size) {
         return 0;
     }
     ssize_t total_size = 0;
-    for (int i = file->pos / block_size; size > 0 && i < 12 && inode->direct_blocks[i] > 0;
+    for (int i = file->pos / block_size;
+         size > 0 && i < DIRECT_BLOCK_COUNT && inode->direct_blocks[i] > 0;
          i++) {
         off_t offset = file->pos % block_size;
         ssize_t read_size = block_read(fs->dev_id, block_size, read_buf,
@@ -456,10 +513,169 @@ finally:
     kernel_mallocator.free(read_buf);
     return total_size;
 }
-ssize_t ext2_write(file_t *file, const byte_t *buf, size_t size) {}
+
+size_t alloc_block(dev_id_t dev_id, ext2_desc *desc, size_t count,
+                   uint32_t *blocks, bool must) {
+    block_group_desc_t *group = desc->block_groups + 0;
+    if (group->unallocated_block_count < count) {
+        return 0;
+    }
+    size_t block_size = kb_size(desc->super_block->block_size_kb);
+    byte_t *block_bitmap = kernel_mallocator.malloc(block_size);
+    if (!block_bitmap) {
+        return 0;
+    }
+    block_read(dev_id, block_size, block_bitmap, group->block_bitmap, 1);
+    bitmap_t bitmap;
+    bitmap.bits = block_bitmap;
+    bitmap.bytes_len = block_size;
+    size_t success = 0;
+    size_t inodes_blocks_per_group = desc->super_block->inodes_per_group *
+                                     desc->super_block_ext->inode_size /
+                                     block_size;
+    size_t data_block_start = group->inode_table + inodes_blocks_per_group + 1;
+    for (int i = 0; i < count; i++) {  // search one by one
+        int idx = bitmap_scan(&bitmap, 1);
+        if (idx >= 0) {
+            bitmap_set(&bitmap, idx, 1);
+            success++;
+            blocks[i] = idx + data_block_start;
+        } else if (must) {
+            return 0;
+        }
+    }
+    group->unallocated_block_count -= success;
+    desc->super_block->unallocated_block_count -= success;
+    // block_write(dev_id, block_size, block_bitmap, group->block_bitmap, 1);
+    // block_write(dev_id, block_size, desc->super_block, 2, 1);
+    // block_write(dev_id, block_size, desc->block_groups, 1, 1);
+    kernel_mallocator.free(block_bitmap);
+    return success;
+}
+
+ssize_t ext2_write(file_t *file, const byte_t *buf, size_t size) {
+    if (file->mode & O_RDONLY) {
+        return -1;
+    }
+    if (!file->data || !file->desc->data) {
+        return -1;
+    }
+    file_data_t *file_data = (file_data_t *)file->data;
+    inode_t *inode = (inode_t *)file_data->inode;
+    ext2_desc *desc = (ext2_desc *)file->desc->data;
+
+    uint32_t block_size = kb_size(desc->super_block->block_size_kb);
+    sint32_t alloc_size =
+        (sint32_t)file->pos + size - up2(file->size, block_size);
+    if (alloc_size > 0) {  // file free space is not enough
+        // to alloc more free space
+        alloc_size = up2(alloc_size, block_size);
+        size_t alloc_block_count = alloc_size / block_size;
+        uint32_t *blocks =
+            kernel_mallocator.malloc(sizeof(uint32_t) * alloc_block_count);
+        if (alloc_block(file->desc->dev_id, desc, alloc_block_count, blocks,
+                        true) == alloc_block_count) {
+            int block_start = up2(file->size, block_size) / block_size + 1;
+            for (int i = 0; i < alloc_block_count; i++) {
+                inode->direct_blocks[block_start + i] = blocks[i];
+            }
+        }
+        kernel_mallocator.free(blocks);
+        // block_write(file->desc->dev_id, block_size, inode, 0, 1);
+    }
+    size_t block_idx = file->pos / block_size;
+    off_t block_offset = file->pos % block_size;
+    byte_t *buffer = (byte_t *)kernel_mallocator.malloc(block_size);
+    size_t write_size = 0;
+    size_t all_write_size = 0;
+    if (block_offset) {
+        write_size = min(block_size - block_offset, size);
+        block_read(file->desc->dev_id, block_size, buffer,
+                   inode->direct_blocks[block_idx], 1);
+        memcpy(buffer + block_offset, buf, write_size);
+        block_write(file->desc->dev_id, block_size, buffer, inode->direct_blocks[block_idx], 1);
+        size -= write_size;
+        file->pos += write_size;
+        file->size = max(file->size, file->pos);
+        inode->size0_31 = file->size;
+        buf += write_size;
+        all_write_size += write_size;
+    }
+    while (size > 0) {
+        block_idx = file->pos / block_size;
+        block_offset = file->pos % block_size;
+
+        write_size = min(block_size - block_offset, size);
+        block_read(file->desc->dev_id, block_size, buffer,
+                   inode->direct_blocks[block_idx], 1);
+        memcpy(buffer + block_offset, buf, write_size);
+        block_write(file->desc->dev_id, block_size, buffer, inode->direct_blocks[block_idx], 1);
+        size -= write_size;
+        file->pos += write_size;
+        file->size = max(file->size, file->pos);
+        inode->size0_31 = file->size;
+        buf += write_size;
+        all_write_size += write_size;
+    }
+    error err =
+        rw_inode(file->desc->dev_id, desc, file_data->inode_idx, inode, true);
+    if (err) {
+        return err;
+    }
+    return all_write_size;
+}
 void ext2_close(file_t *file) {}
-off_t ext2_seek(file_t *file, off_t offset, int whence) {}
-error ext2_stat(file_t *file, void *data) {}
+off_t ext2_seek(file_t *file, off_t offset, int whence) {
+    off_t ret_offset = -1;
+    switch (whence) {
+    case SEEK_SET:
+        offset = max(offset, 0);
+        ret_offset = file->pos;
+        file->pos = offset;
+        ret_offset = file->pos - ret_offset;
+        break;
+    case SEEK_CUR:
+        uint64_t pos = file->pos + offset;
+        if (pos >= 1 << sizeof(file->pos)) {
+            ret_offset = EOVERFLOW;
+        } else {
+            ret_offset = file->pos;
+            file->pos += offset;
+            ret_offset = file->pos - ret_offset;
+        }
+        break;
+    case SEEK_END:
+        ret_offset = file->pos;
+        file->pos = max(file->size + offset, 0);
+        ret_offset = file->pos - ret_offset;
+    default:
+        ret_offset = EINVAL;
+        break;
+    }
+    return ret_offset;
+}
+error ext2_stat(file_t *file, void *data) {
+    if (file->data == NULL || file->desc == NULL) {
+        return -1;
+    }
+    file_data_t *file_data = (file_data_t *)file->data;
+    inode_t *inode = (inode_t *)file_data->inode;
+    ext2_desc *desc = (ext2_desc *)file->desc->data;
+    stat_t *stat = (stat_t *)data;
+    stat->dev_id = file->desc->dev_id;
+    stat->size = file->size;
+    stat->block_size = kb_size(desc->super_block->block_size_kb);
+    stat->block_count = 0;
+    for (int i = 0; i < DIRECT_BLOCK_COUNT; i++) {
+        if (inode->direct_blocks[i] > 0) {
+            stat->block_count++;
+        }
+    }
+    stat->create_time.tv_sec = (time64_t)inode->create_time;
+    stat->create_time.tv_nsec = 0;
+    stat->update_time.tv_sec = (time64_t)inode->last_write_time;
+    stat->update_time.tv_nsec = 0;
+}
 error ext2_remove(file_t *file) {}
 error ext2_readdir(file_t *dir, void *data) {
     if (dir->type != FILE_DIR || dir->data == NULL || dir->desc == NULL ||
@@ -467,7 +683,8 @@ error ext2_readdir(file_t *dir, void *data) {
         return -1;
     }
     dirent_t *dirent = (dirent_t *)data;
-    inode_t *inode = (inode_t *)dir->data;
+    file_data_t *file_data = (file_data_t*)dir->data;
+    inode_t *inode = (inode_t *)file_data->inode;
     fs_desc_t *fs = dir->desc;
     if (fs->data == NULL) {
         return -1;
@@ -479,7 +696,8 @@ error ext2_readdir(file_t *dir, void *data) {
     dirent->offset;
     int i = 0;
     bool found = false;
-    for (; i < 12 && inode->direct_blocks[i] && inode->direct_blocks[i] > 0;
+    for (; i < DIRECT_BLOCK_COUNT && inode->direct_blocks[i] &&
+           inode->direct_blocks[i] > 0;
          i++) {
         if (block_read(fs->dev_id, kb_size(desc->super_block->block_size_kb),
                        entries, inode->direct_blocks[i], 1) <= 0) {
@@ -502,7 +720,7 @@ error ext2_readdir(file_t *dir, void *data) {
             memcpy(dirent->name, name,
                    min(sizeof(dirent->name), dir_entry_name_len(entry)));
             inode_t *child_inode = kernel_mallocator.malloc(sizeof(inode_t));
-            open_inode(fs->dev_id, desc, entry->inode, child_inode);
+            rw_inode(fs->dev_id, desc, entry->inode, child_inode, false);
             dirent->size = child_inode->size0_31;
             kernel_mallocator.free(child_inode);
             goto success;
@@ -518,7 +736,7 @@ success:
 error ext2_mkdir(fs_desc_t *fs, const char *path, file_t *file) {}
 error ext2_link(file_t *file, const char *new_path, int arg) {}
 error ext2_unlink(file_t *file_t) {}
-
+error ext2_ioctl(file_t *file, int cmd, int arg0, int arg1) {}
 fs_ops_t ext2_ops = {
     .mount = ext2_mount,
     .unmount = ext2_unmount,

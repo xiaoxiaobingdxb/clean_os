@@ -2,6 +2,7 @@
 #define TOOL_DATETIME_H
 
 #include "../types/basic.h"
+#include "math.h"
 
 #define sec2ms(n) (n * 1000)
 #define ms2us(n) (n * 1000)
@@ -18,6 +19,15 @@
 #define day2sec(n) (minu2sec(day2minu(n)))
 
 typedef sint64_t time64_t;
+
+typedef struct {
+    int year;
+    int month;
+    int day;
+    int hour;
+    int minute;
+    int second;
+} datetime_t;
 
 static inline time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 		const unsigned int day, const unsigned int hour,
@@ -40,4 +50,44 @@ static inline time64_t mktime64(const unsigned int year0, const unsigned int mon
     return time;
 }
 
+
+static inline void mkdatetime(time64_t time, datetime_t *datetime) {
+    int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (!datetime) {
+        return;
+    }
+    time = div_u64_rem(time, 60, &datetime->second);
+    time = div_u64_rem(time, 60, &datetime->minute);
+    int year4 = div_u64_rem(time, 1461 * 24, NULL);
+    datetime->year = 1970 + year4 * 4;
+    uint32_t remainder;
+    div_u64_rem(time, 1461 * 24, &remainder);
+    time = remainder;
+    for(;;) {
+        int hours_per_year = 365 * 24;
+        if ((datetime->year & 3) == 0) {
+            hours_per_year += 24;
+        }
+        if (time < hours_per_year) {
+            break;
+        }
+        datetime->year++;
+        time -= hours_per_year;
+    }
+    time = div_u64_rem(time, 24, &datetime->hour);
+    time++;
+    if ((datetime->year & 3) == 0) {
+        if (time > 60) {
+            time--;
+        } else if (time == 60) {
+            datetime->month = 1;
+            datetime->day = 29;
+            return;
+        }
+    }
+    for (datetime->month = 0; days[datetime->month] < time; datetime->month++) {
+        time -= days[datetime->month];
+    }
+    datetime->day = time;
+}
 #endif // TOOL_DATETIME_H

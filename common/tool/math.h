@@ -73,6 +73,10 @@ static inline uint64_t div_u64_rem(uint64_t dividend, uint32_t divisor,
         d.v32[1] = upper / divisor;
         upper %= divisor;
     }
+    uint32_t tmp;
+    if (!remainder) {
+        remainder = &tmp;
+    }
     __asm__("divl %2"
             : "=a"(d.v32[0]), "=d"(*remainder)
             : "rm"(divisor), "0"(d.v32[0]), "1"(upper));

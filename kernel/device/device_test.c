@@ -214,11 +214,32 @@ void test_lfn() {
     close(fd);
 }
 
+void test_ext2() {
+    init_std();
+    const char *file_name = "/ext2/test.txt";
+    fd_t fd = open(file_name, O_RDWR);
+    if (fd < 0) {
+        printf("open fail\n");
+        return;
+    }
+    char *read_buf = malloc(512);
+    ssize_t read_size = 0;
+    while ((read_size = read(fd, read_buf, 512)) > 0) {
+        printf("read from %s:%s\n", file_name, read_buf);
+    }
+    char *write_buf = "ttt\n";
+    ssize_t write_size = write(fd, write_buf, strlen(write_buf));
+    printf("write size:%d\n", write_size);
+    free(read_buf);
+    close(fd);
+}
+
 void test_device() {
     // test_tty();
     // test_kbd();
     // test_disk();
     // test_dir();
     // test_lfn();
-    test_sub_dir();
+    // test_sub_dir();
+    test_ext2();
 }

@@ -285,6 +285,11 @@ declare_cmd_func(date) {
     memset(&timespec, 0, sizeof(timespec));
     timestamp(&timespec);
     printf("unix:%l %l\n", timespec.tv_sec, timespec.tv_nsec);
+    datetime_t datetime;
+    mkdatetime(timespec.tv_sec, &datetime);
+    printf("%d year %d month %d day %d hour %d minute %d second\n",
+           datetime.year, datetime.month, datetime.day, datetime.hour,
+           datetime.minute, datetime.second);
     pid_t pid = get_pid();
     if (pid >= 0) {
         sys_info info;

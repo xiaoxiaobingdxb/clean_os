@@ -35,13 +35,9 @@ void init_process() {
     sysinfo(pid, &info, SYS_INFO_MEM);
     // test_clone();
     // test_malloc_process();
-    // pid = fork();
-    // if (pid == 0) {
-    //     test_device();
-    //     return;
-    // }
     pid = fork();
     if (pid == 0) {
+        // test_device();
         init_shell();
         return;
     }

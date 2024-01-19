@@ -786,6 +786,9 @@ error expand_file(file_t *file, bpb_t *bpb, size_t size) {
     return 0;
 }
 ssize_t fat16_write(file_t *file, const byte_t *buf, size_t size) {
+    if (file->mode & O_RDONLY) {
+        return -1;
+    }
     bpb_t *bpb = (bpb_t *)file->desc->data;
     if (!bpb) {
         return -1;
