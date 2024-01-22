@@ -6,11 +6,12 @@
 #include "io/std.h"
 #include "memory/malloc/malloc.h"
 
+fd_t stdio_fd;
 void init_shell_std() {
-    fd_t fd = open("/dev/tty0", TTY_OUT_LINE | TTY_OUT_R_N | TTY_OUT_ECHO);
-    dup2(STDIN_FILENO, fd);
-    dup2(STDOUT_FILENO, fd);
-    dup2(STDERR_FILENO, fd);
+    stdio_fd = open("/dev/tty0", TTY_OUT_LINE | TTY_OUT_R_N | TTY_OUT_ECHO);
+    dup2(STDIN_FILENO, stdio_fd);
+    dup2(STDOUT_FILENO, stdio_fd);
+    dup2(STDERR_FILENO, stdio_fd);
 }
 
 extern void shell_main();
@@ -40,6 +41,8 @@ cmd_t *find_cmd(char *cmd_str);
 
 void show_prompt() { printf("shell >>"); }
 
+error get_input_file_path(int argc, char **argv, char *path);
+
 #define ARG_COUNT_MAX 10
 void shell_main() {
     char *buf = (char *)malloc(1024);
@@ -67,10 +70,34 @@ void shell_main() {
             if (!cmd) {
                 printf("%s not found\n", cmd_name);
             } else {
+                bool has_redirect = false;
+                fd_t redirect_fd;
+                if (argc >= 3 && strcmp(argv[argc - 2], ">>") == 0) {  // redirect
+                    char *path = malloc(256);
+                    if (path) {
+                        error err = 0;
+                        char* tmp_argv[] = {argv[argc-2], argv[argc-1]};
+                        if ((err = get_input_file_path(2, tmp_argv, path)) ==
+                            0) {
+                            redirect_fd = open(path, O_RDWR);
+                            if (redirect_fd > 0) {
+                                dup2(STDOUT_FILENO, redirect_fd);
+                                has_redirect = true;
+                            }
+                        }
+                        free(path);
+                    }
+                    argc -= 2;
+                }
+
                 int return_code;
                 if ((return_code = cmd->func(argc, argv)) != 0) {
                     fprintf(STDERR_FILENO, "call %s err, code=%d\n", cmd_name,
                             return_code);
+                }
+                if (has_redirect) {
+                    close(redirect_fd);
+                    dup2(STDOUT_FILENO, stdio_fd);
                 }
             }
             cmd_str = strtok_r(NULL, ";", &save_ptr);
@@ -184,6 +211,7 @@ error get_input_file_path(int argc, char **argv, char *path) {
     }
     return 0;
 }
+
 declare_cmd_func(list) {
     char *path = malloc(256);
     if (path == NULL) {

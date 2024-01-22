@@ -417,6 +417,7 @@ error ext2_open(fs_desc_t *fs, const char *path, file_t *file) {
     if (!desc) {
         return -1;
     }
+    file_data_t *file_data = NULL;
     error err;
     inode_t *root_inode =
         kernel_mallocator.malloc(desc->super_block_ext->inode_size);
@@ -449,7 +450,7 @@ error ext2_open(fs_desc_t *fs, const char *path, file_t *file) {
         }
     }
     extract_file(file, inode);
-    file_data_t *file_data =
+    file_data = 
         (file_data_t *)kernel_mallocator.malloc(sizeof(file_data_t));
     if (!file_data) {
         err = -1;
