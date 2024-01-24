@@ -44,5 +44,5 @@ add_subdirectory(shell)
 
 add_dependencies(boot common)
 add_dependencies(loader common)
-add_dependencies(kernel common)
+add_dependencies(kernel common app)
 add_dependencies(shell common app)

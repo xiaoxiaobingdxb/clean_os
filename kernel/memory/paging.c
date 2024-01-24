@@ -162,8 +162,9 @@ int unalloc_kernel_mem(uint32_t vaddr, int page_count) {
 
 int unalloc_mem(uint32_t page_dir, vir_addr_alloc_t *vir_addr_alloc,
                 uint32_t vaddr, uint32_t page_count) {
-    uint32_t paddr = vaddr2paddr(page_dir, vaddr);
-    if (paddr < 0) {
+    bool have = false;
+    uint32_t paddr = vaddr2paddr(page_dir, vaddr, &have);
+    if (!have) {
         return -1;
     }
     int err = free_phy_mem(paddr, page_count);
@@ -204,11 +205,13 @@ pte_t *get_pte(uint32_t page_dir, uint32_t vaddr) {
  * 3. vaddr last 12 bit is the offset with page start address, get physical
  * using page start address add the offset
  */
-uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr) {
+uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr, bool *have) {
     pte_t *pte = get_pte(page_dir, vaddr);
     if (!pte || !pte->present) {
+        *have = false;
         return -1;
     }
+    *have = true;
     return phy_addr(pe_phy_addr(pte->phy_page_addr), vaddr);
 }
 
@@ -443,8 +446,9 @@ int free_vm_for_page_dir(uint32_t page_dir, uint32_t vstart, uint32_t size) {
     // virtual memory is continuous but the physical memory may not be
     // continuous,so we need to free one page by on page
     for (int i = 0; i < page_count; i++) {
-        uint32_t paddr = vaddr2paddr(page_dir, vstart);
-        if (paddr < 0) {
+        bool have = false;
+        uint32_t paddr = vaddr2paddr(page_dir, vstart, &have);
+        if (!have) {
             return -1;
         }
         int err = free_phy_mem(paddr, 1);
@@ -467,8 +471,9 @@ uint32_t map_mem(uint32_t page_dir, uint32_t vaddr, uint32_t paddr,
     uint32_t ret_vaddr = vaddr;
     paddr = down2(paddr, MEM_PAGE_SIZE);
     for (int i = 0; i < page_count; i++) {
-        uint32_t get_paddr = vaddr2paddr(page_dir, vaddr);
-        if (get_paddr >= 0 && !override) {  // already map
+        bool have = false;
+        uint32_t get_paddr = vaddr2paddr(page_dir, vaddr, &have);
+        if (have && !override) {  // already map
             return -1;
         }
         int permit = PTE_W;

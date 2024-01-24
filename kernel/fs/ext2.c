@@ -450,8 +450,7 @@ error ext2_open(fs_desc_t *fs, const char *path, file_t *file) {
         }
     }
     extract_file(file, inode);
-    file_data = 
-        (file_data_t *)kernel_mallocator.malloc(sizeof(file_data_t));
+    file_data = (file_data_t *)kernel_mallocator.malloc(sizeof(file_data_t));
     if (!file_data) {
         err = -1;
         goto open_fail;
@@ -493,9 +492,11 @@ ssize_t ext2_read(file_t *file, byte_t *buf, size_t size) {
         return 0;
     }
     ssize_t total_size = 0;
-    for (int i = file->pos / block_size;
-         size > 0 && i < DIRECT_BLOCK_COUNT && inode->direct_blocks[i] > 0;
+    for (int i = file->pos / block_size; size > 0 && i < DIRECT_BLOCK_COUNT;
          i++) {
+        if (inode->direct_blocks[i] == 0) {
+            continue;
+        }
         off_t offset = file->pos % block_size;
         ssize_t read_size = block_read(fs->dev_id, block_size, read_buf,
                                        inode->direct_blocks[i], 1);
@@ -594,7 +595,8 @@ ssize_t ext2_write(file_t *file, const byte_t *buf, size_t size) {
         block_read(file->desc->dev_id, block_size, buffer,
                    inode->direct_blocks[block_idx], 1);
         memcpy(buffer + block_offset, buf, write_size);
-        block_write(file->desc->dev_id, block_size, buffer, inode->direct_blocks[block_idx], 1);
+        block_write(file->desc->dev_id, block_size, buffer,
+                    inode->direct_blocks[block_idx], 1);
         size -= write_size;
         file->pos += write_size;
         file->size = max(file->size, file->pos);
@@ -610,7 +612,8 @@ ssize_t ext2_write(file_t *file, const byte_t *buf, size_t size) {
         block_read(file->desc->dev_id, block_size, buffer,
                    inode->direct_blocks[block_idx], 1);
         memcpy(buffer + block_offset, buf, write_size);
-        block_write(file->desc->dev_id, block_size, buffer, inode->direct_blocks[block_idx], 1);
+        block_write(file->desc->dev_id, block_size, buffer,
+                    inode->direct_blocks[block_idx], 1);
         size -= write_size;
         file->pos += write_size;
         file->size = max(file->size, file->pos);
@@ -676,6 +679,7 @@ error ext2_stat(file_t *file, void *data) {
     stat->create_time.tv_nsec = 0;
     stat->update_time.tv_sec = (time64_t)inode->last_write_time;
     stat->update_time.tv_nsec = 0;
+    return 0;
 }
 error ext2_remove(file_t *file) {}
 error ext2_readdir(file_t *dir, void *data) {
@@ -684,7 +688,7 @@ error ext2_readdir(file_t *dir, void *data) {
         return -1;
     }
     dirent_t *dirent = (dirent_t *)data;
-    file_data_t *file_data = (file_data_t*)dir->data;
+    file_data_t *file_data = (file_data_t *)dir->data;
     inode_t *inode = (inode_t *)file_data->inode;
     fs_desc_t *fs = dir->desc;
     if (fs->data == NULL) {

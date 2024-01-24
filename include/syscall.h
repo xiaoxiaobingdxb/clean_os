@@ -16,7 +16,7 @@
 
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, int offset);
 static inline void *mmap_anonymous(size_t length) {
-    return mmap(NULL, length, PROT_READ | PROT_READ, MAP_ANONYMOUS, 0, 0);
+    return mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0);
 }
 void munmap(void *addr, size_t size);
 

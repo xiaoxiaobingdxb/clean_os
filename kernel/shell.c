@@ -72,11 +72,12 @@ void shell_main() {
             } else {
                 bool has_redirect = false;
                 fd_t redirect_fd;
-                if (argc >= 3 && strcmp(argv[argc - 2], ">>") == 0) {  // redirect
+                if (argc >= 3 &&
+                    strcmp(argv[argc - 2], ">>") == 0) {  // redirect
                     char *path = malloc(256);
                     if (path) {
                         error err = 0;
-                        char* tmp_argv[] = {argv[argc-2], argv[argc-1]};
+                        char *tmp_argv[] = {argv[argc - 2], argv[argc - 1]};
                         if ((err = get_input_file_path(2, tmp_argv, path)) ==
                             0) {
                             redirect_fd = open(path, O_RDWR);
@@ -110,9 +111,11 @@ declare_cmd_func(man);
 declare_cmd_func(clear);
 declare_cmd_func(list);
 declare_cmd_func(pwd);
+declare_cmd_func(free);
 declare_cmd_func(echo);
 declare_cmd_func(cat);
 declare_cmd_func(date);
+declare_cmd_func(exec);
 cmd_t cmd_list[] = {
     {
         .name = "man",
@@ -135,6 +138,11 @@ cmd_t cmd_list[] = {
         .func = do_pwd,
     },
     {
+        .name = "free",
+        .usage = "show memory usage info",
+        .func = do_free,
+    },
+    {
         .name = "echo",
         .usage = "show message into screen",
         .func = do_echo,
@@ -148,6 +156,11 @@ cmd_t cmd_list[] = {
         .name = "date",
         .usage = "display or set date and time",
         .func = do_date,
+    },
+    {
+        .name = "exec",
+        .usage = "execute a program",
+        .func = do_exec,
     },
 };
 cmd_t *find_cmd(char *cmd_str) {
@@ -215,27 +228,27 @@ error get_input_file_path(int argc, char **argv, char *path) {
 declare_cmd_func(list) {
     char *path = malloc(256);
     if (path == NULL) {
-        goto fail;
+        goto finallly;
     }
     error err = 0;
     if ((err = get_input_file_path(argc, argv, path)) != 0) {
-        goto fail;
+        goto finallly;
     }
     fd_t fd = open(path, O_RDONLY);
     if (fd < 0) {
         printf("ls: %s: No such file or directory\n", path);
         err = -1;
-        goto fail;
+        goto finallly;
     }
     dirent_t *dirent = malloc(sizeof(dirent_t));
     if (dirent == NULL) {
         err = -1;
-        goto fail;
+        goto finallly;
     }
     while (readdir(fd, dirent) == 0) {
         printf("%d %d %s\n", dirent->child_count, dirent->size, dirent->name);
     }
-fail:
+finallly:
     if (fd >= 0) {
         close(fd);
     }
@@ -260,6 +273,18 @@ declare_cmd_func(pwd) {
     return 0;
 }
 
+declare_cmd_func(free) {
+    sys_info info;
+    pid_t pid = get_pid();
+    if (pid < 0) {
+        return -1;
+    }
+    if (sysinfo(pid, &info, SYS_INFO_MEM) == 0) {
+        printf("kernel_phy:%d, kernel_vir:%d, user_phy:%d, user_vir:%d\n", info.kernel_phy_mem_used, info.kernel_mem_used, info.user_phy_mem_used, info.user_mem_used);
+    }
+    return 0;
+}
+
 declare_cmd_func(echo) {
     for (int i = 1; i < argc - 1; i++) {
         printf("%s ", argv[i]);
@@ -278,12 +303,12 @@ declare_cmd_func(cat) {
     }
     error err = 0;
     if ((err = get_input_file_path(argc, argv, path)) != 0) {
-        goto fail;
+        goto finallly;
     }
     fd_t fd = open(path, O_RDONLY);
     if (fd < 0) {
         err = -1;
-        goto fail;
+        goto finallly;
     }
     const int buf_size = 512;
     byte_t *read_buf = malloc(buf_size);
@@ -298,7 +323,7 @@ declare_cmd_func(cat) {
     }
     printf("\n");
     free(read_buf);
-fail:
+finallly:
     if (path != NULL) {
         free(path);
     }
@@ -325,5 +350,25 @@ declare_cmd_func(date) {
             printf("cpu:%l\n", info.cpu_info.rdtscp);
         }
     }
+    return 0;
+}
+
+declare_cmd_func(exec) {
+    char *path = malloc(256);
+    if (path == NULL) {
+        return -1;
+    }
+    error err = 0;
+    if ((err = get_input_file_path(argc, argv, path)) != 0) {
+        free(path);
+        return err;
+    }
+    pid_t pid = fork();
+    if (pid == 0) {
+        execve(path, NULL, NULL);
+    }
+    int status;
+    wait(&status);
+    free(path);
     return 0;
 }

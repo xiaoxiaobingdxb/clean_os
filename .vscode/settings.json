@@ -96,7 +96,8 @@
         "cstdlib": "c",
         "byte.h": "c",
         "memory_resource": "c",
-        "complex": "c"
+        "complex": "c",
+        "elf.h": "c"
     }
     
 }

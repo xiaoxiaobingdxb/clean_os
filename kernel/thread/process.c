@@ -10,6 +10,7 @@
 #include "common/lib/string.h"
 #include "common/tool/math.h"
 #include "thread.h"
+#include "common/tool/log.h"
 
 extern uint64_t kernel_all_memory, user_all_memory;
 uint32_t user_mode_stack_addr() {
@@ -51,7 +52,12 @@ void start_process(void *p_func) {
     // alloc a page for user mode stack, and assign esp to to page end to be
     // stack top
     uint32_t vaddr = user_mode_stack_addr();
-    vaddr = malloc_thread_mem_vaddr(vaddr, USER_STACK_SIZE / MEM_PAGE_SIZE);
+    bool have = false;
+    vaddr2paddr(thread->page_dir, vaddr, &have);
+    if (!have) {
+        vaddr = malloc_thread_mem_vaddr(vaddr, USER_STACK_SIZE / MEM_PAGE_SIZE);
+    }
+    memset((void*)vaddr, 0, MEM_PAGE_SIZE);
     void *user_stack = (void *)(vaddr + MEM_PAGE_SIZE);
     process_kernel2user(thread, p_func, user_stack);
 }
@@ -168,6 +174,7 @@ uint32_t process_wait(int *status) {
     if (!cur) {
         return -1;
     }
+    log_info("process_wait:%s\n", cur->name);
     for (;;) {
         task_struct *child;
         child = thread_child(cur, TASK_HANGING);
@@ -229,6 +236,7 @@ void process_exit(int status) {
     if (cur == NULL) {
         return;
     }
+    log_info("process_exit:%s\n", cur->name);
     cur->exit_code = status;
     if (!has_other_thread(cur)) {
         // release all user_mode memeory
@@ -247,11 +255,6 @@ void process_exit(int status) {
     }
     // hang current process
     set_thread_status(cur, TASK_HANGING, true);
-}
-
-int process_execve(const char *filename, char *const argv[],
-                   char *const envp[]) {
-    return 0;
 }
 
 void *process_mmap(void *addr, size_t length, int prot, int flags, int fd,

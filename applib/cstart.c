@@ -8,5 +8,6 @@ void cstart(int argc, char **argv) {
     while (start < bss_end) {
         *start++ = 0;
     }
+    main(argc, argv);
     exit(main(argc, argv));
 }

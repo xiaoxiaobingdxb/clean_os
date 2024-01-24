@@ -9,6 +9,7 @@
 #include "process.h"
 #include "../time/timer.h"
 #include "../fs/fs.h"
+#include "common/tool/log.h"
 
 list ready_tasks;
 list all_tasks;
@@ -327,6 +328,7 @@ task_struct *thread_child(task_struct *parent, task_status status) {
 }
 
 void thread_exit(task_struct *task, bool need_schedule) {
+    log_info("thread_exit:%s\n", task->name);
     set_thread_status(task, TASK_DIED, need_schedule);
     remove(&ready_tasks, &task->general_tag);
     remove(&all_tasks, &task->all_tag);

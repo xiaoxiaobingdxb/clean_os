@@ -93,6 +93,7 @@ void *_malloc(size_t size, bool isKernel) {
         state = kernel_state;
     }
     if (size > state->descs[MEM_BLOCK_CNT - 1].block_size) {
+        size += sizeof(mem_arena);
         size = up2(size, MEM_PAGE_SIZE);
         uint32_t paeg_count = size / MEM_PAGE_SIZE;
         mem_arena *a = (mem_arena *)state->allocator(size);

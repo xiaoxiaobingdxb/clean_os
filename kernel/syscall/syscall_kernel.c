@@ -6,7 +6,7 @@
 #include "../thread/process.h"
 #include "../thread/thread.h"
 #include "common/tool/math.h"
-#include "syscall_no.h"
+#include "include/syscall_no.h"
 #include "../time/time.h"
 
 #define SYSCALL_SIZE 512

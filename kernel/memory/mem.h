@@ -22,7 +22,7 @@ struct addr_alloc_t_ {
 typedef struct addr_alloc_t_ phy_addr_alloc_t;
 typedef struct addr_alloc_t_ vir_addr_alloc_t;
 
-uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr);
+uint32_t vaddr2paddr(uint32_t page_dir, uint32_t vaddr, bool *have);
 
 void init_gdt();
 
