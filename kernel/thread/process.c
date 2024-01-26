@@ -8,9 +8,9 @@
 #include "common/lib/stack.h"
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"
+#include "common/tool/log.h"
 #include "common/tool/math.h"
 #include "thread.h"
-#include "common/tool/log.h"
 
 extern uint64_t kernel_all_memory, user_all_memory;
 uint32_t user_mode_stack_addr() {
@@ -47,7 +47,7 @@ void process_kernel2user(task_struct *thread, void *p_func, void *user_stack) {
         : "memory");
 }
 
-void start_process(void *p_func) {
+void _start_process(void *p_func, int argc, char *const argv[]) {
     task_struct *thread = cur_thread();
     // alloc a page for user mode stack, and assign esp to to page end to be
     // stack top
@@ -57,10 +57,16 @@ void start_process(void *p_func) {
     if (!have) {
         vaddr = malloc_thread_mem_vaddr(vaddr, USER_STACK_SIZE / MEM_PAGE_SIZE);
     }
-    memset((void*)vaddr, 0, MEM_PAGE_SIZE);
+    // memset((void *)vaddr, 0, MEM_PAGE_SIZE);
     void *user_stack = (void *)(vaddr + MEM_PAGE_SIZE);
+    if (argc > 0 && argv != NULL) {
+        user_stack = stack_push(user_stack, (void*)argv);
+        user_stack = stack_push_value(user_stack, &argc, sizeof(int));
+    }
     process_kernel2user(thread, p_func, user_stack);
 }
+
+void start_process(void *p_func) { _start_process(p_func, 0, NULL); }
 
 // alloc page_dir for process and init virtual memory bitmap
 void init_process_mem(task_struct *thread) {
@@ -285,11 +291,13 @@ int process_sysinfo(uint32_t pid, sys_info *info, int flags) {
         uint32_t user_page_count = count_mem_used(&task->vir_addr_alloc);
         uint32_t kernel_phy_page_count = count_mem_used(&kernel_phy_addr_alloc);
         uint32_t user_phy_page_count = count_mem_used(&user_phy_addr_alloc);
-        info->kernel_mem_used = kernel_page_count * MEM_PAGE_SIZE;
-        info->user_mem_used = user_page_count * MEM_PAGE_SIZE;
-        info->kernel_phy_mem_used = kernel_phy_page_count * MEM_PAGE_SIZE;
-        info->user_phy_mem_used = user_phy_page_count * MEM_PAGE_SIZE;
+        info->mem_info.kernel_mem_used = kernel_page_count * MEM_PAGE_SIZE;
+        info->mem_info.user_mem_used = user_page_count * MEM_PAGE_SIZE;
+        info->mem_info.kernel_phy_mem_used =
+            kernel_phy_page_count * MEM_PAGE_SIZE;
+        info->mem_info.user_phy_mem_used = user_phy_page_count * MEM_PAGE_SIZE;
     }
+    info->mem_info.mem_page_size = MEM_PAGE_SIZE;
     memcpy(info->pwd, task->pwd, sizeof(task->pwd));
     if (flags & SYS_INFO_CPU_INFO) {
         info->cpu_info.rdtscp = get_rdtsc();

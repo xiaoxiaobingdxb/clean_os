@@ -41,7 +41,7 @@ bool find_by_pid_visitor(list_node *node, void *arg) {
 void segment_wakeup(segment_t *seg, pid_t *pid) {
     eflags_t state = enter_intr_protect();
     list_node *tag;
-    if (*pid != 0) {
+    if (pid != NULL && *pid != 0) {
         void *args[2] = {(void *)pid, NULL};
         foreach (&seg->waiters, find_by_pid_visitor, (void *)args)
             ;

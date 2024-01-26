@@ -1,5 +1,5 @@
-#include "../io/std.h"
-#include "../memory/malloc/malloc.h"
+#include "glibc/include/stdio.h"
+#include "glibc/include/malloc.h"
 #include "../syscall/syscall_user.h"
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"

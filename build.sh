@@ -3,8 +3,8 @@ if [ ! -d "build" ];then
     mkdir ./build
 fi
 cd build
-cmake ../
-make
+cmake -DKERNEL=1 ../
+make boot loader kernel
 os_img=clean_os.dmg
 # create os img if not exist
 if [ ! -f "$os_img" ];then
@@ -27,3 +27,8 @@ done
 # cp shell.elf mp/shell.elf
 # hdiutil detach mp
 # rm -rf mp
+
+cmake -DKERNEL=0 ../
+make shell
+
+echo "rm shell\nwrite shell.bin shell\nq\n" | $(brew --prefix e2fsprogs)/sbin/debugfs -w ../file_ext2.dmg

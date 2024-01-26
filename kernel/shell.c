@@ -1,10 +1,10 @@
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"
 #include "common/tool/math.h"
+#include "glibc/include/malloc.h"
+#include "glibc/include/stdio.h"
 #include "include/device_model.h"
 #include "include/syscall.h"
-#include "io/std.h"
-#include "memory/malloc/malloc.h"
 
 fd_t stdio_fd;
 void init_shell_std() {
@@ -55,17 +55,18 @@ void shell_main() {
         }
         char *cmd_str = strtok_r(buf, ";", &save_ptr);
         int argc = 0;
-        char *argv[ARG_COUNT_MAX];
+        char *argv[ARG_COUNT_MAX + 1];
         while (cmd_str) {
             char *str_save_point;
             char *str = strtok_r(cmd_str, " ", &str_save_point);
             trim_left(str);
             char *cmd_name = str;
             argc = 0;
-            while (str) {
+            while (str && argc < ARG_COUNT_MAX) {
                 argv[argc++] = str;
                 str = strtok_r(NULL, " ", &str_save_point);
             }
+            argv[argc] = NULL;
             cmd_t *cmd = find_cmd(cmd_name);
             if (!cmd) {
                 printf("%s not found\n", cmd_name);
@@ -106,7 +107,7 @@ void shell_main() {
     }
 }
 
-#define declare_cmd_func(name) int do_##name(int argc, char **argv)
+#define declare_cmd_func(name) int do_##name(int argc, char *argv[])
 declare_cmd_func(man);
 declare_cmd_func(clear);
 declare_cmd_func(list);
@@ -280,7 +281,9 @@ declare_cmd_func(free) {
         return -1;
     }
     if (sysinfo(pid, &info, SYS_INFO_MEM) == 0) {
-        printf("kernel_phy:%d, kernel_vir:%d, user_phy:%d, user_vir:%d\n", info.kernel_phy_mem_used, info.kernel_mem_used, info.user_phy_mem_used, info.user_mem_used);
+        printf("kernel_phy:%d, kernel_vir:%d, user_phy:%d, user_vir:%d\n",
+               info.mem_info.kernel_phy_mem_used, info.mem_info.kernel_mem_used,
+               info.mem_info.user_phy_mem_used, info.mem_info.user_mem_used);
     }
     return 0;
 }
@@ -364,11 +367,21 @@ declare_cmd_func(exec) {
         return err;
     }
     pid_t pid = fork();
+    char **heap_argv = malloc((argc + 1) * sizeof(char *));
+    for (int i = 0; i < argc + 1; i++) {
+        heap_argv[i] = argv[i];
+    }
     if (pid == 0) {
-        execve(path, NULL, NULL);
+        if ((err = execve(path, heap_argv, NULL)) != 0) {
+            printf("not found program file %s\n", path);
+            goto finally;
+        }
     }
     int status;
     wait(&status);
-    free(path);
-    return 0;
+finally:
+    if (path) {
+        free(path);
+    }
+    return err;
 }

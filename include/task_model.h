@@ -13,6 +13,11 @@ typedef struct {
     uint32_t user_mem_used;
     uint32_t kernel_phy_mem_used;
     uint32_t user_phy_mem_used;
+    uint32_t mem_page_size;
+} mem_info;
+
+typedef struct {
+    mem_info mem_info;
     char pwd[64];
     cpu_info cpu_info;
 } sys_info;

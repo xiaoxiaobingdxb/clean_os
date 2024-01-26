@@ -1,5 +1,5 @@
 #include "../fs/fs.h"
-#include "../memory/malloc/mallocator.h"
+#include "glibc/include/malloc.h"
 #include "./process.h"
 #include "common/elf/elf.h"
 #include "common/lib/string.h"
@@ -38,14 +38,21 @@ uint32_t load_elf(uint8_t *file_buffer) {
     return elf_hdr->e_entry;
 }
 
-extern void start_process(void *p_func);
+extern void _start_process(void *p_func, int argc, char *const argv[]);
 void exec(uint8_t *elf_buf, char *const argv[], char *const envp[]) {
     uint32_t entry = load_elf(elf_buf);
     if (!entry) {
         return;
     }
     kernel_mallocator.free(elf_buf);
-    start_process((void *)entry);
+    
+    int argc = 0;
+    if (argv) {
+        while (argv[argc]) {
+            argc++;
+        }
+    }
+    _start_process((void *)entry, argc, argv);
 }
 
 void rename_process_name(const char *filename) {

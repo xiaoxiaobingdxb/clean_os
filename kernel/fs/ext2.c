@@ -1,5 +1,5 @@
 #include "../device/disk/disk.h"
-#include "../memory/malloc/mallocator.h"
+#include "glibc/include/malloc.h"
 #include "common/lib/bitmap.h"
 #include "common/lib/string.h"
 #include "common/tool/log.h"
@@ -134,7 +134,7 @@ file_type get_file_type(dir_entry_type type) {
 }
 
 #define dir_entry_name(entry) ((char *)((uint32_t)entry + sizeof(dir_entry_t)))
-#define dir_entry_name_len(entry) (entry->size - 8)
+#define dir_entry_name_len(entry) (entry->name_length)
 
 #pragma pack()
 
@@ -384,8 +384,9 @@ ssize_t get_sub_inode(fs_desc_t *fs, ext2_desc *desc, inode_t *parent,
                                      kb_size(desc->super_block->block_size_kb);
              entry = (dir_entry_t *)((uint32_t)entry + entry->size)) {
             char *get_name = dir_entry_name(entry);
-            if (memcmp(name, get_name,
-                       min(strlen(name), dir_entry_name_len(entry))) == 0) {
+            size_t name_len = strlen(name);
+            if (name_len == dir_entry_name_len(entry) && memcmp(name, get_name,
+                       min(name_len, dir_entry_name_len(entry))) == 0) {
                 idx = rw_inode(fs->dev_id, desc, entry->inode, inode, false);
                 if (idx == 0) {
                     idx = entry->inode;
@@ -722,6 +723,7 @@ error ext2_readdir(file_t *dir, void *data) {
             dirent->offset++;
             dirent->type = get_file_type((dir_entry_type)entry->type);
             char *name = dir_entry_name(entry);
+            memset(dirent->name, 0, sizeof(dirent->name));
             memcpy(dirent->name, name,
                    min(sizeof(dirent->name), dir_entry_name_len(entry)));
             inode_t *child_inode = kernel_mallocator.malloc(sizeof(inode_t));

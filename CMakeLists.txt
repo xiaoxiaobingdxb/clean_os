@@ -25,6 +25,7 @@ set(LINKER_TOOL "${TOOL_PREFIX}ld")
 set(OBJCOPY_TOOL "${TOOL_PREFIX}objcopy")
 set(OBJDUMP_TOOL "${TOOL_PREFIX}objdump")
 set(READELF_TOOL "${TOOL_PREFIX}readelf")
+set(AR_TOOL "${TOOL_PREFIX}ar")
 
 project(clean_os LANGUAGES C)
 enable_language(ASM)
@@ -32,17 +33,21 @@ enable_language(ASM)
 # search h file
 include_directories(
     ${PROJECT_SOURCE_DIR}
-    include
 )
 
 add_subdirectory(common)
+add_subdirectory(glibc)
+
 add_subdirectory(boot)
 add_subdirectory(loader)
+add_subdirectory(shell)
 add_subdirectory(kernel)
 add_subdirectory(applib)
-add_subdirectory(shell)
 
 add_dependencies(boot common)
 add_dependencies(loader common)
-add_dependencies(kernel common app)
-add_dependencies(shell common app)
+add_dependencies(glibc common)
+add_dependencies(shell common app glibc)
+add_dependencies(kernel common app glibc)
+
+

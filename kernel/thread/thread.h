@@ -11,7 +11,7 @@
 #define TASK_DEFAULT_PRIORITY 31
 #define TASK_FILE_SIZE 128
 
-typedef void thread_func(void *);
+typedef void thread_func(void *p_func);
 
 typedef struct {
     uint32_t ebp, ebx, edi, esi;

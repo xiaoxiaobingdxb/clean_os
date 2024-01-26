@@ -75,7 +75,7 @@ uint32_t alloc_phy_mem(phy_addr_alloc_t *phy_addr_alloc, int page_count) {
 
 int alloc_phy_mem_page(phy_addr_alloc_t *phy_addr_alloc, int page_count,
                        uint32_t *paddrs) {
-    if (page_count > sizeof(paddrs) / sizeof(uint32_t)) {
+    if (page_count > MALLOC_MAX_PAGE) {
         return -1;
     }
     for (int i = 0; i < page_count; i++) {
