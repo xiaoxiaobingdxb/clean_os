@@ -5,6 +5,7 @@
 #include "include/fs_model.h"
 
 void init_std();
+void release_std();
 
 ssize_t fprintf(const fd_t fd, const char *fmt, ...);
 ssize_t printf(const char *fmt, ...);

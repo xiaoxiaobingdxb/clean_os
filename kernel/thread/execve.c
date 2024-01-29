@@ -78,7 +78,7 @@ int process_execve(const char *filename, char *const argv[],
         return -1;
     }
     ssize_t total = 0;
-    const int buf_size = 512;
+    const int buf_size = 1024;
     byte_t *read_buf = kernel_mallocator.malloc(buf_size);
     ssize_t read_size;
     while (total < elf_size &&

@@ -5,6 +5,7 @@
 #include "include/fs_model.h"
 
 extern void init_std();
+extern void release_std();
 
 extern ssize_t fprintf(const fd_t fd, const char *fmt, ...);
 extern ssize_t printf(const char *fmt, ...);

@@ -26,7 +26,10 @@ extern void test_clone();
 extern void test_malloc_process();
 extern void test_device();
 
-extern void init_shell();
+void init_shell() {
+    const char *file_path = "/ext2/shell";
+    execve(file_path, NULL, NULL);
+}
 void init_process() {
     // test_fork();
     pid_t pid = get_pid();

@@ -1,8 +1,9 @@
-#include "glibc/include/malloc.h"
-#include "include/syscall.h"
 #include "common/lib/stdio.h"
 #include "common/lib/string.h"
+#include "glibc/include/malloc.h"
+#include "include/syscall.h"
 
+fd_t fd = -1;
 void init_std() {
     fd_t fd = open("/dev/tty0", 0);
     dup2(STDIN_FILENO, fd);
@@ -10,11 +11,20 @@ void init_std() {
     dup2(STDERR_FILENO, fd);
 }
 
+void release_std() {
+    if (fd >= 0) {
+        close(fd);
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
+    }
+}
+
 ssize_t _fprintf(const fd_t fd, const char *fmt, va_list args) {
     size_t size = sizeof(fmt) + 128;
     char *buf = (char *)malloc(size);
     vsprintf(buf, fmt, args);
-    ssize_t write_size =  write(fd, buf, size);
+    ssize_t write_size = write(fd, buf, size);
     free(buf);
     return write_size;
 }
@@ -32,7 +42,7 @@ ssize_t printf(const char *fmt, ...) {
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    ssize_t write_size =  write(STDOUT_FILENO, buf, strlen(buf));
+    ssize_t write_size = write(STDOUT_FILENO, buf, strlen(buf));
     free(buf);
     return write_size;
 }
@@ -52,7 +62,7 @@ char *gets(char *buf) {
             return NULL;
         }
         buf[idx++] = ch;
-        if (ch == '\n'||ch == '\r') {
+        if (ch == '\n' || ch == '\r') {
             buf[idx - 1] = 0;
             break;
         }

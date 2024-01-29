@@ -1,11 +1,12 @@
 #include "../device/disk/disk.h"
-#include "glibc/include/malloc.h"
 #include "common/lib/bitmap.h"
 #include "common/lib/string.h"
+#include "common/tool/lib.h"
 #include "common/tool/log.h"
 #include "common/tool/math.h"
 #include "common/types/byte.h"
 #include "fs.h"
+#include "glibc/include/malloc.h"
 #include "include/syscall.h"
 
 /**
@@ -101,6 +102,14 @@ typedef struct {
 typedef struct {
     inode_t *inode;
     size_t inode_idx;
+    uint32_t *first_indirect_blocks;
+
+    uint32_t *second_indirect_idx;
+    uint32_t **second_indirect_blocks;
+
+    uint32_t *third_indirect_idx1;
+    uint32_t **thrid_indirect_idx2;
+    uint32_t ***third_indirect_blocks;
 } file_data_t;
 
 typedef struct {
@@ -385,7 +394,8 @@ ssize_t get_sub_inode(fs_desc_t *fs, ext2_desc *desc, inode_t *parent,
              entry = (dir_entry_t *)((uint32_t)entry + entry->size)) {
             char *get_name = dir_entry_name(entry);
             size_t name_len = strlen(name);
-            if (name_len == dir_entry_name_len(entry) && memcmp(name, get_name,
+            if (name_len == dir_entry_name_len(entry) &&
+                memcmp(name, get_name,
                        min(name_len, dir_entry_name_len(entry))) == 0) {
                 idx = rw_inode(fs->dev_id, desc, entry->inode, inode, false);
                 if (idx == 0) {
@@ -493,14 +503,56 @@ ssize_t ext2_read(file_t *file, byte_t *buf, size_t size) {
         return 0;
     }
     ssize_t total_size = 0;
-    for (int i = file->pos / block_size; size > 0 && i < DIRECT_BLOCK_COUNT;
-         i++) {
-        if (inode->direct_blocks[i] == 0) {
+
+    size_t inodes_per_block = block_size / sizeof(uint32_t);
+    for (int i = file->pos / block_size; size > 0; i++) {
+        if (i >= DIRECT_BLOCK_COUNT) {
+            int indirect_idx = i - DIRECT_BLOCK_COUNT;
+            if (indirect_idx >= 0 && indirect_idx < inodes_per_block &&
+                file_data->first_indirect_blocks == NULL) { // first
+                file_data->first_indirect_blocks =
+                    kernel_mallocator.malloc(block_size);
+                block_read(fs->dev_id, block_size,
+                           (void *)file_data->first_indirect_blocks,
+                           inode->indirect_blocks[indirect_idx], 1);
+            }
+            indirect_idx -= inodes_per_block;
+            if (indirect_idx >= 0 &&
+                indirect_idx < block_size * inodes_per_block) { // second TODO read
+                
+            }
+            indirect_idx -= block_size * inodes_per_block;
+            if (indirect_idx >= 0 && file_data->third_indirect_blocks == NULL) { // third TODO read
+                file_data->third_indirect_blocks = NULL;
+            }
+        }
+
+        int block_idx = i;
+        uint32_t *blocks = inode->direct_blocks;
+
+        if (block_idx >= DIRECT_BLOCK_COUNT) {  // first
+            block_idx = i - DIRECT_BLOCK_COUNT;
+            blocks = file_data->first_indirect_blocks;
+        }
+        if (block_idx >= inodes_per_block) {  // second TODO read
+            block_idx -= inodes_per_block;
+            blocks =
+                file_data->second_indirect_blocks[block_idx / inodes_per_block];
+        } else if (i == DIRECT_BLOCK_COUNT +
+                            block_size * inodes_per_block) {  // third TODO read
+            block_idx = i - DIRECT_BLOCK_COUNT - inodes_per_block -
+                        block_size * inodes_per_block;
+            blocks = file_data->third_indirect_blocks[block_idx / block_size /
+                                                      inodes_per_block][0];
+        } else {
+        }
+
+        if (blocks[block_idx] == 0) {
             continue;
         }
         off_t offset = file->pos % block_size;
-        ssize_t read_size = block_read(fs->dev_id, block_size, read_buf,
-                                       inode->direct_blocks[i], 1);
+        ssize_t read_size =
+            block_read(fs->dev_id, block_size, read_buf, blocks[block_idx], 1);
         if (read_size <= 0) {
             total_size = read_size;
             goto finally;
@@ -512,6 +564,7 @@ ssize_t ext2_read(file_t *file, byte_t *buf, size_t size) {
         buf += read_size;
         total_size += read_size;
     }
+
 finally:
     kernel_mallocator.free(read_buf);
     return total_size;
