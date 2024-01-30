@@ -46,9 +46,9 @@ ssize_t tty_write(device_t *dev, uint32_t addr, const byte_t *buf,
     }
     for (int i = 0; i < size; i++) {
         switch (buf[i]) {
-        case '\n':
+        case newline:
             if (tty->in_flags | TTY_IN_N_RN) {
-                console_putchar(tty->console_idx, '\r');
+                console_putchar(tty->console_idx, enter);
             }
             break;
         default:
@@ -70,14 +70,18 @@ ssize_t tty_read(device_t *dev, uint32_t addr, byte_t *buf, size_t size) {
         if (value == NULL) {
             continue;
         }
-        if (*value == '\r' && (tty->out_flags & TTY_OUT_R_N)) {
-            *value = '\n';
+        if (*value == enter && (tty->out_flags & TTY_OUT_R_N)) {
+            *value = newline;
         }
         if (tty->out_flags & TTY_OUT_ECHO) {
             tty_write(dev, 0, value, 1);
         }
+        if (*value == backspace && len > 0 && !(tty->in_flags & TTY_IN_BACKSPACE)) {
+            len--;
+            continue;
+        }
         buf[len++] = *((byte_t *)value);
-        if ((*value) == '\n' && (tty->out_flags & TTY_OUT_LINE)) {
+        if ((*value) == newline && (tty->out_flags & TTY_OUT_LINE)) {
             break;
         }
     }

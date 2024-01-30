@@ -44,7 +44,7 @@ void clear(console_t *console, int row_start, int row_end, int col_start,
     display_char_t *display_start =
         console->display_base + console->display_cols * row_start + col_start;
     display_char_t *display_end =
-        console->display_base + console->display_cols * (row_end - 1) + col_end;
+        console->display_base + console->display_cols * row_end + col_end;
     for (; display_start < display_end; display_start++) {
         display_start->ch = ' ';
     }
@@ -150,7 +150,7 @@ void putchar(console_t *console, char ch) {
 
 void putchar_normal(console_t *console, char ch) {
     switch (ch) {
-    case '\n':
+    case newline:
         cursor_down(console, 1);
         break;
     case enter:

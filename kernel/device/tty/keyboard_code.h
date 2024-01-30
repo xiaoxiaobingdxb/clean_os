@@ -5,6 +5,7 @@
 #define backspace '\b'
 #define tab '\t'
 #define enter '\r'
+#define newline '\n'
 #define delete '\177'
 
 #define ctrl_l 0

@@ -61,6 +61,10 @@ char *gets(char *buf) {
         if (read_size <= 0) {
             return NULL;
         }
+        if (ch == '\b' && idx > 0) {
+            buf[idx--] = 0;
+            continue;
+        }
         buf[idx++] = ch;
         if (ch == '\n' || ch == '\r') {
             buf[idx - 1] = 0;
