@@ -27,6 +27,8 @@ set(OBJDUMP_TOOL "${TOOL_PREFIX}objdump")
 set(READELF_TOOL "${TOOL_PREFIX}readelf")
 set(AR_TOOL "${TOOL_PREFIX}ar")
 
+set(APP_LDS "${CMAKE_CURRENT_SOURCE_DIR}/applib/app.lds")
+
 project(clean_os LANGUAGES C)
 enable_language(ASM)
 
@@ -40,14 +42,16 @@ add_subdirectory(glibc)
 
 add_subdirectory(boot)
 add_subdirectory(loader)
-add_subdirectory(shell)
+add_subdirectory(app/shell)
 add_subdirectory(kernel)
 add_subdirectory(applib)
+add_subdirectory(app/init)
 
 add_dependencies(boot common)
 add_dependencies(loader common)
 add_dependencies(glibc common)
 add_dependencies(shell common app glibc)
+add_dependencies(app common app glibc)
 add_dependencies(kernel common app glibc)
 
 

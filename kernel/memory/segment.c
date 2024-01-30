@@ -98,6 +98,7 @@ void init_gdt() {
         gdt_set(i << 3, 0, 0, 0);
     }
     init_tss();
+    uint32_t USER_MEM = 0x80000000;
     gdt_set(KERNEL_SELECTOR_DS, 0x00000000, 0xFFFFFFFF,
             SEG_P_PRESENT | SEG_DPL0 | SEG_S_NORMAL | SEG_TYPE_DATA |
                 SEG_TYPE_RW | SEG_D | SEG_G);

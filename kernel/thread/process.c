@@ -89,6 +89,25 @@ void process_execute(void *p_func, const char *name) {
     pushr(&all_tasks, &thread->all_tag);
 }
 
+
+void start_init_process(void *p_func) {
+    process_execve("/ext2/init", NULL, NULL);
+}
+void process_execute_init() {
+    task_struct *cur = cur_thread();
+    if (cur == NULL) {
+        return;
+    }
+    task_struct *thread = (task_struct *)alloc_kernel_mem(1);
+    init_thread(thread, "init", TASK_DEFAULT_PRIORITY);
+    thread->pid = alloc_pid();
+    thread->parent_pid = cur->pid;
+    thread_create(thread, start_init_process, NULL);
+    init_process_mem(thread);
+    pushr(&ready_tasks, &thread->general_tag);
+    pushr(&all_tasks, &thread->all_tag);
+}
+
 pid_t process_get_pid() {
     task_struct *cur = cur_thread();
     if (cur == NULL) {

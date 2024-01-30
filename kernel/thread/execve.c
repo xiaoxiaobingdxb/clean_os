@@ -38,8 +38,29 @@ uint32_t load_elf(uint8_t *file_buffer) {
     return elf_hdr->e_entry;
 }
 
+void clear_user_mem() {
+    task_struct *src = cur_thread();
+    // copy all user memory
+    for (int idx_byte = 0; idx_byte < src->vir_addr_alloc.bitmap.bytes_len;
+         idx_byte++) {
+        if (src->vir_addr_alloc.bitmap
+                .bits[idx_byte]) {  // use the byte in bitmap
+            for (int idx_bit = idx_byte * 8; idx_bit < idx_byte * 8 + 8;
+                 idx_bit++) {
+                if (bitmap_scan_test(&src->vir_addr_alloc.bitmap, idx_bit)) {
+                    uint32_t vaddr = src->vir_addr_alloc.start +
+                                     idx_bit * src->vir_addr_alloc.page_size;
+                    bitmap_set(&src->vir_addr_alloc.bitmap, idx_bit, 1);
+                    unmalloc_thread_mem(vaddr, 1);
+                }
+            }
+        }
+    }
+}
+
 extern void _start_process(void *p_func, int argc, char *const argv[]);
 void exec(uint8_t *elf_buf, char *const argv[], char *const envp[]) {
+    clear_user_mem();
     uint32_t entry = load_elf(elf_buf);
     if (!entry) {
         return;

@@ -29,6 +29,6 @@ done
 # rm -rf mp
 
 cmake -DKERNEL=0 ../
-make shell
+make shell init
 
-echo "rm shell\nwrite shell.bin shell\nq\n" | $(brew --prefix e2fsprogs)/sbin/debugfs -w ../file_ext2.dmg
+echo "rm init\n rm shell\n write app/init.bin init\n write app/shell.bin shell\n q\n" | $(brew --prefix e2fsprogs)/sbin/debugfs -w ../file_ext2.dmg
