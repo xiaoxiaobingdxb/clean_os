@@ -36,7 +36,7 @@ ssize_t fprintf(const fd_t fd, const char *fmt, ...) {
     return write_size;
 }
 ssize_t printf(const char *fmt, ...) {
-    size_t size = sizeof(fmt) + 128;
+    size_t size = sizeof(fmt) + 512;
     char *buf = (char *)malloc(size);
     va_list args;
     va_start(args, fmt);

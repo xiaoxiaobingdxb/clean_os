@@ -58,7 +58,7 @@ void keyboard_hander(uint32_t intr_no) {
         uint8_t idx = (scan_code &= 0x00ff);
         char ch = keymap[idx][shift];
         if (ch) {
-            _log_debug("keyboard input ch=%c\n", ch) int idx = queue_len(&kbd_buf);
+            // _log_debug("keyboard input ch=%c\n", ch) int idx = queue_len(&kbd_buf);
             buf[idx] = ch;
             queue_put(&kbd_buf, (void*)buf + idx);
             return;

@@ -1,8 +1,10 @@
 #include "idt.h"
 #include "intr.h"
 #include "err.h"
+#include "common/tool/log.h"
 
 void default_handler(uint32_t intr_no) {
+    log_err("intr_handle:%d\n", intr_no);
     return;
 }
 

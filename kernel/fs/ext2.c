@@ -506,53 +506,82 @@ ssize_t ext2_read(file_t *file, byte_t *buf, size_t size) {
 
     size_t inodes_per_block = block_size / sizeof(uint32_t);
     for (int i = file->pos / block_size; size > 0; i++) {
-        if (i >= DIRECT_BLOCK_COUNT) {
+        uint32_t block_addr = -1;
+        if (i < DIRECT_BLOCK_COUNT) {
+            block_addr = inode->direct_blocks[i];
+        } else {
             int indirect_idx = i - DIRECT_BLOCK_COUNT;
             if (indirect_idx >= 0 && indirect_idx < inodes_per_block &&
-                file_data->first_indirect_blocks == NULL) { // first
-                file_data->first_indirect_blocks =
-                    kernel_mallocator.malloc(block_size);
-                block_read(fs->dev_id, block_size,
-                           (void *)file_data->first_indirect_blocks,
-                           inode->indirect_blocks[indirect_idx], 1);
+                inode->indirect_blocks[0] > 0) {  // first
+                if (file_data->first_indirect_blocks == NULL) {
+                    file_data->first_indirect_blocks =
+                        kernel_mallocator.malloc(block_size);
+                    block_read(fs->dev_id, block_size,
+                               (void *)file_data->first_indirect_blocks,
+                               inode->indirect_blocks[0], 1);
+                }
+                block_addr = file_data->first_indirect_blocks[indirect_idx];
             }
             indirect_idx -= inodes_per_block;
+
             if (indirect_idx >= 0 &&
-                indirect_idx < block_size * inodes_per_block) { // second TODO read
-                
+                indirect_idx < inodes_per_block * inodes_per_block && inode->indirect_blocks[1] > 0) {  // second
+                int second_idx = indirect_idx / inodes_per_block;
+                if (file_data->second_indirect_idx == NULL) {
+                    file_data->second_indirect_idx =
+                        (uint32_t *)kernel_mallocator.malloc(block_size);
+                    block_read(fs->dev_id, block_size,
+                               (void *)file_data->second_indirect_idx,
+                               inode->indirect_blocks[1], 1);
+                }
+                if (file_data->second_indirect_blocks == NULL) {
+                    file_data->second_indirect_blocks =
+                        (uint32_t **)kernel_mallocator.malloc(block_size);
+                }
+                if (file_data->second_indirect_blocks[second_idx] == 0) {
+                    file_data->second_indirect_blocks[second_idx] =
+                        (uint32_t*)kernel_mallocator.malloc(block_size);
+                    block_read(
+                        fs->dev_id, block_size,
+                        (void *)file_data->second_indirect_blocks[second_idx],
+                        file_data->second_indirect_idx[second_idx], 1);
+                }
+                block_addr = file_data->second_indirect_blocks[second_idx][indirect_idx%(inodes_per_block*inodes_per_block)];
             }
-            indirect_idx -= block_size * inodes_per_block;
-            if (indirect_idx >= 0 && file_data->third_indirect_blocks == NULL) { // third TODO read
+
+            indirect_idx -= inodes_per_block * inodes_per_block;
+            if (indirect_idx >= 0 &&
+                indirect_idx < inodes_per_block * inodes_per_block *
+                                   inodes_per_block) {  // third TODO read
+                if (file_data->third_indirect_idx1 == NULL) {
+                    file_data->third_indirect_idx1 =
+                        (uint32_t *)kernel_mallocator.malloc(block_size);
+                    block_read(fs->dev_id, block_size,
+                               (void *)file_data->third_indirect_idx1,
+                               inode->indirect_blocks[2], 1);
+                }
+                if (file_data->third_indirect_blocks == NULL) {
+                    file_data->third_indirect_blocks =
+                        (uint32_t ***)kernel_mallocator.malloc(block_size);
+                }
                 file_data->third_indirect_blocks = NULL;
             }
+
+            indirect_idx -= inodes_per_block * inodes_per_block * inodes_per_block;
+            if (indirect_idx >= 0) {
+                return -1;
+            }
         }
 
-        int block_idx = i;
-        uint32_t *blocks = inode->direct_blocks;
-
-        if (block_idx >= DIRECT_BLOCK_COUNT) {  // first
-            block_idx = i - DIRECT_BLOCK_COUNT;
-            blocks = file_data->first_indirect_blocks;
-        }
-        if (block_idx >= inodes_per_block) {  // second TODO read
-            block_idx -= inodes_per_block;
-            blocks =
-                file_data->second_indirect_blocks[block_idx / inodes_per_block];
-        } else if (i == DIRECT_BLOCK_COUNT +
-                            block_size * inodes_per_block) {  // third TODO read
-            block_idx = i - DIRECT_BLOCK_COUNT - inodes_per_block -
-                        block_size * inodes_per_block;
-            blocks = file_data->third_indirect_blocks[block_idx / block_size /
-                                                      inodes_per_block][0];
-        } else {
-        }
-
-        if (blocks[block_idx] == 0) {
+        if (block_addr < 0) {
+            return -1;
+        } else if (block_addr == 0) {
             continue;
         }
+
         off_t offset = file->pos % block_size;
         ssize_t read_size =
-            block_read(fs->dev_id, block_size, read_buf, blocks[block_idx], 1);
+            block_read(fs->dev_id, block_size, read_buf, block_addr, 1);
         if (read_size <= 0) {
             total_size = read_size;
             goto finally;
