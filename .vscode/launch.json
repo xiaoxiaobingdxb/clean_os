@@ -49,11 +49,11 @@
                 //     "ignoreFailures": false
                 // }
                 {
-                    "text": "add-symbol-file ./build/app/init/init.elf 0x81000000",
+                    "text": "add-symbol-file ./build/app/init/init.elf 0x41000000",
                     "ignoreFailures": false
                 },
                 {
-                    "text": "add-symbol-file ./build/app/shell/shell.elf 0x81000000",
+                    "text": "add-symbol-file ./build/app/shell/shell.elf 0x41000000",
                     "ignoreFailures": false
                 },
                 

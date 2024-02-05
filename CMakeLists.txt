@@ -16,7 +16,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-builtin")
 
 # assembly compiler gcc
 set(CMAKE_ASM_COMPILER "${TOOL_PREFIX}gcc")
-set(CMAKE_ASM_FLAGS "-m32 -g")
+set(CMAKE_ASM_FLAGS "-m32 -g -O0")
 set(CMAKE_ASM_SOURCE_FILE_EXTENSIONS "asm")
 
 set(LINKER_TOOL "${TOOL_PREFIX}ld")
@@ -50,8 +50,8 @@ add_subdirectory(app/init)
 add_dependencies(boot common)
 add_dependencies(loader common)
 add_dependencies(glibc common)
-add_dependencies(shell common app glibc)
-add_dependencies(app common app glibc)
+add_dependencies(shell app glibc common)
+add_dependencies(app app glibc common)
 add_dependencies(kernel common app glibc)
 
 

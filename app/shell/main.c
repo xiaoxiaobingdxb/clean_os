@@ -2,7 +2,8 @@
 #include "common/lib/string.h"
 #include "common/tool/math.h"
 #include "glibc/include/malloc.h"
-#include "glibc/include/stdio.h"
+// #include "glibc/include/stdio.h"
+#include "glibc/io/std.h"
 #include "include/device_model.h"
 #include "include/syscall.h"
 
