@@ -331,13 +331,13 @@ void init_paging(uint64_t all_mem) {
     uint32_t kernel_vend = kernel_all_memory - 1;
     mem_map kernel_map[] = {
         {kernel_base, s_text, 0, PTE_U | PTE_W},  // kernel stack seg
-        {s_text, e_text, s_text, PTE_U | PTE_W},  // kernel code seg
+        {s_text, e_text, s_text, PTE_S | PTE_W},  // kernel code seg
         {s_data, (void *)(EBDA_START - 1), s_data,
-         PTE_U | PTE_W},  // kernel data seg
+         PTE_S | PTE_W},  // kernel data seg
         {(void *)EBDA_START, (void *)(kernel_vstart - 1), (void *)EBDA_START,
-         PTE_U | PTE_W},
+         PTE_S | PTE_W},
         {(void *)kernel_vstart, (void *)kernel_vend, (void *)MEM_EXT_START,
-         PTE_U | PTE_W},
+         PTE_S | PTE_W},
     };
     memset(kernel_page_dir, 0, sizeof(kernel_page_dir));
     for (int i = 0; i < sizeof(kernel_map) / sizeof(mem_map); i++) {
@@ -477,9 +477,10 @@ uint32_t map_mem(uint32_t page_dir, uint32_t vaddr, uint32_t paddr,
             return -1;
         }
         int permit = PTE_W;
-        if ((pde_t *)page_dir != kernel_page_dir) {
-            permit |= PTE_U;
-        }
+        // if ((pde_t *)page_dir != kernel_page_dir) {
+        // permit |= PTE_U;
+        // }
+        permit |= (pde_t *)page_dir != kernel_page_dir ? PTE_U : PTE_S;
         int err = create_mem_map((pde_t *)page_dir, vaddr, paddr, 1, permit);
         if (err) {
             return -1;

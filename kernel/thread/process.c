@@ -33,7 +33,7 @@ void process_kernel2user(task_struct *thread, void *p_func, void *user_stack) {
     p_stack->edi = p_stack->esi = p_stack->ebp = p_stack->esp_dummy = 0;
     p_stack->ebx = p_stack->edx = p_stack->ecx = p_stack->eax = 0;
     p_stack->gs = 0;
-    p_stack->fs = p_stack->es = p_stack->ds = USER_SELECTOR_DS;
+    p_stack->gs = p_stack->fs = p_stack->es = p_stack->ds = USER_SELECTOR_DS;
 
     p_stack->err_code = 0;
     p_stack->eip = p_func;
