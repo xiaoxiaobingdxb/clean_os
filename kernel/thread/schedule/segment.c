@@ -18,7 +18,9 @@ void segment_wait(segment_t *seg, pid_t *pid) {
             ASSERT(false);
         }
     }
-    *pid = cur->pid;
+    if (pid != NULL) {
+        *pid = cur->pid;
+    }
     if (seg->count > 0) {
         seg->count--;
     } else {

@@ -15,7 +15,13 @@ typedef signed long long sint64_t;
 
 typedef __SIZE_TYPE__ size_t;
 typedef long signed int ssize_t;
+#ifndef _OFF_T
+#define _OFF_T
 typedef long signed int off_t;
+#endif
 
 #define NULL ((void *)0)
+#define CONCAT(x, y) x##y
+#define RESERVED_TOKEN(x, y) CONCAT(x, y)
+#define RESERVED RESERVED_TOKEN(reserved, __LINE__)
 #endif

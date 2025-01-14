@@ -143,3 +143,12 @@ void foreach (list *l, foreach_visitor visitor, void *arg) {
         }
     }
 }
+
+list_node* list_find(list *l, foreach_visitor visitor, void *arg) {
+    for (list_node *p = l->head.next; p != &l->tail && p != NULL; p = p->next) {
+        if (!visitor(p, arg)) {
+            return p;
+        }
+    }
+    return NULL;
+}

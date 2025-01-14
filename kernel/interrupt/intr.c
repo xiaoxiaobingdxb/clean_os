@@ -81,3 +81,39 @@ intr_handler intr_handlers[INT_DESC_CNT];
 void register_intr_handler(int intr_no, intr_handler handler) {
     intr_handlers[intr_no] = handler;
 }
+
+
+#define IRQ_PIC_START		0x20			// intr_no start
+#define PIC0_IMR			0x21
+#define PIC1_IMR			0xa1
+void intr_enable(int intr_no) {
+    if (intr_no < IRQ_PIC_START) {
+        return;
+    }
+
+    intr_no -= IRQ_PIC_START;
+    if (intr_no < 8) {
+        uint8_t mask = inb(PIC0_IMR) & ~(1 << intr_no);
+        outb(PIC0_IMR, mask);
+    } else {
+        intr_no -= 8;
+        uint8_t mask = inb(PIC1_IMR) & ~(1 << intr_no);
+        outb(PIC1_IMR, mask);
+    }
+}
+
+void intr_disable(int intr_no) {
+    if (intr_no < IRQ_PIC_START) {
+        return;
+    }
+
+    intr_no -= IRQ_PIC_START;
+    if (intr_no < 8) {
+        uint8_t mask = inb(PIC0_IMR) | (1 << intr_no);
+        outb(PIC0_IMR, mask);
+    } else {
+        intr_no -= 8;
+        uint8_t mask = inb(PIC1_IMR) | (1 << intr_no);
+        outb(PIC1_IMR, mask);
+    }
+}

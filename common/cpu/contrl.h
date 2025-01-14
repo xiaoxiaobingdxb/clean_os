@@ -51,6 +51,19 @@ static inline void outw(uint16_t port, uint16_t v) {
     __asm__ __volatile__("outw %[v], %[p]" ::[p] "d"(port), [v] "a"(v));
 }
 
+static inline uint32_t inl(uint16_t port) {
+    uint32_t rv;
+    // __asm__ __volatile__("inl %[p], %[v]" : [v] "=a"(rv) : [p] "d"(port));
+    // __asm__ __volatile__("inl %1, %0" : "=a" (rv) : "dN" (port));
+    asm volatile ("inl %%dx, %%eax" : "=a" (rv) : "dN" (port));
+    return rv;
+}
+
+static inline void outl(uint16_t port, uint32_t v) {
+    // __asm__ __volatile__("outl %[v], %[p]" ::[p] "dN"(port), [v] "a"(v));
+     asm volatile ("outl %%eax, %%dx" : : "dN" (port), "a" (v));
+}
+
 static inline uint32_t read_cr0() {
     uint32_t cr0;
     __asm__ __volatile__("mov %%cr0, %[v]" : [v] "=r"(cr0));

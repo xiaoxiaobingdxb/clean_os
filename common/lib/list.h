@@ -36,4 +36,6 @@ typedef bool(foreach_visitor)(list_node *node, void *arg);
 
 void foreach (list *l, foreach_visitor visitor, void *arg);
 
+list_node* list_find(list *l, foreach_visitor visitor, void *arg);
+
 #endif

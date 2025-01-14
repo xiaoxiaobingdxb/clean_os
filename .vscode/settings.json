@@ -97,7 +97,30 @@
         "byte.h": "c",
         "memory_resource": "c",
         "complex": "c",
-        "elf.h": "c"
+        "elf.h": "c",
+        "pci.h": "c",
+        "mio.h": "c",
+        "driver.h": "c",
+        "ehter.h": "c",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "concepts": "c",
+        "numeric": "c",
+        "hlist.h": "c",
+        "variant": "c",
+        "hash.h": "c",
+        "ip.h": "c",
+        "netif.h": "c",
+        "pkt_buf.h": "c",
+        "pktbuf.h": "c",
+        "net_err.h": "c",
+        "nlist.h": "c",
+        "stdint.h": "c",
+        "fixq.h": "c",
+        "mblock.h": "c",
+        "util.h": "c",
+        "exmsg.h": "c",
+        "arp.h": "c"
     }
     
 }

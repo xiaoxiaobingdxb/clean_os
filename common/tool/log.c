@@ -45,7 +45,7 @@ void set_level(log_level level) { cur_level = level; }
         return;                    \
     }                              \
     char str_buf[512];             \
-    memset(str_buf, 0, 512);       \
+    memset(str_buf, '\0', 512);       \
     va_list args;                  \
     va_start(args, fmt);           \
     vsprintf(str_buf, fmt, args);  \

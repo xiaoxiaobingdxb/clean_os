@@ -598,3 +598,10 @@ uint32_t count_mem_used(vir_addr_alloc_t *alloc) {
     bitmap_foreach(&alloc->bitmap, 1, count_mem_used_visitor, &count);
     return count;
 }
+
+void map_mem_direct(uint32_t vaddr, uint32_t paddr, size_t size) {
+    size_t page_count = down2(size, MEM_PAGE_SIZE)/MEM_PAGE_SIZE;
+    alloc_mem_use(get_phy_addr_alloc(paddr), paddr, page_count, true);
+    alloc_mem_use(&kernel_vir_addr_alloc, vaddr, page_count, true);
+    map_mem(current_page_dir(), vaddr, paddr, page_count, true);
+}

@@ -53,6 +53,10 @@ size_t strlen(const char *str) {
     return (p - str - 1);
 }
 
+void strcpy(const char *dst, const char *src) {
+    memcpy(dst, src, strlen(src));
+}
+
 size_t replace(char *str, char new, char old) {
     for (int i = 0; i < strlen(str); i++) {
         if (str[i] == old) {

@@ -137,4 +137,6 @@ void init_user_vir_addr_alloc(vir_addr_alloc_t *alloc);
 
 uint32_t count_mem_used(vir_addr_alloc_t *alloc);
 
+void map_mem_direct(uint32_t vaddr, uint32_t paddr, size_t size);
+
 #endif

@@ -7,6 +7,7 @@ const char *strcat(const char *dst, const char *src);
 int memcmp(const void *a, const void *b, size_t size);
 size_t strcmp(const char *a, const char *b);
 size_t strlen(const char *str);
+void strcpy(const char *dst, const char *src);
 size_t replace(char *str, char new, char old);
 size_t replace_all(char *str, char new, char old);
 size_t trim(char *str);
@@ -17,6 +18,7 @@ const char *strchr(const char *str, const char ch);
 const char *strrchr(const char *str, const char ch);
 uint32_t strchrs(const char *str, const char ch);
 int str2num(const char *str, int *num);
+void num2str(const int num, char *str);
 char *strtok(char *str, const char *delim);
 char *strtok_r(char *str, const char *delim, char **save_ptr);
 #endif

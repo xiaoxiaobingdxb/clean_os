@@ -31,6 +31,7 @@ set(APP_LDS "${CMAKE_CURRENT_SOURCE_DIR}/applib/app.lds")
 
 project(clean_os LANGUAGES C)
 enable_language(ASM)
+enable_testing()
 
 # search h file
 include_directories(

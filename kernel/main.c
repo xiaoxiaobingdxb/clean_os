@@ -8,6 +8,8 @@
 #include "common/tool/log.h"
 #include "common/types/basic.h"
 #include "fs/fs.h"
+#include "device/pci/pci.h"
+#include "net/net.h"
 
 extern void test_kernel_init();
 
@@ -19,6 +21,12 @@ void kernel_init(struct boot_params *params) {
     init_log();
     init_task();
     init_fs();
+    init_pci();
+}
+
+void _init_thread() {
+    // init_net_driver();
+    init_net();
 }
 
 extern void test_fork();
@@ -41,6 +49,7 @@ void main() {
     log_debug("enter kernel main\n");
     enter_main_thread();
     thread_start("idle", 1, idle, "");
+    _init_thread();
     // test_main();
     exit(0);
 }
