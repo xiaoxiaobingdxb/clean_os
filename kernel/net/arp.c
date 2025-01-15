@@ -211,10 +211,7 @@ net_err_t arp_in(netif_t *netif, pktbuf_t *buf) {
     show_arp_pkt(arp_packet);
 
     ip_addr_t target_ip;
-    target_ip.a_addr[0] = arp_packet->target_paddr[0];
-    target_ip.a_addr[1] = arp_packet->target_paddr[1];
-    target_ip.a_addr[2] = arp_packet->target_paddr[2];
-    target_ip.a_addr[3] = arp_packet->target_paddr[3];
+    ip_addr_from_buf(&target_ip, arp_packet->target_paddr);
     if (target_ip.q_addr == netif->ip_desc.ip_addr.q_addr) {
         log_debug("received an arp, force update\n");
         cache_insert(netif, arp_packet->send_paddr, arp_packet->send_haddr, 1);
@@ -229,7 +226,7 @@ net_err_t arp_in(netif_t *netif, pktbuf_t *buf) {
 }
 
 net_err_t arp_update_from_ipbuf(netif_t *netif, pktbuf_t *buf) {
-    net_err_t err = pktbuf_set_cont(buf, sizeof(ipv4_pkt_t));
+    net_err_t err = pktbuf_set_cont(buf, sizeof(ipv4_hdr_t) + sizeof(ether_hdr_t));
     if (err < 0) {
         return err;
     }
@@ -244,7 +241,7 @@ net_err_t arp_update_from_ipbuf(netif_t *netif, pktbuf_t *buf) {
         return NET_ERR_SIZE;
     }
     ip_addr_t dest_ip;
-    ip_addr_to_buf(&dest_ip, ip_hdr->dest_ip);
+    ip_addr_from_buf(&dest_ip, ip_hdr->dest_ip);
     if (ipaddr_is_match(&netif->ip_desc.ip_addr, &dest_ip, &netif->ip_desc.net_mask)) {
         cache_insert(netif, ip_hdr->src_ip, eth_hdr->src, 0);
     }

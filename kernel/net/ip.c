@@ -52,6 +52,12 @@ void ip_addr_to_buf(ip_addr_t *ip, uint8_t* ip_buf) {
     }
 }
 
+void ip_addr_from_buf(ip_addr_t *ip, uint8_t *ip_buf) {
+    for (int i = 0; i < sizeof(ip->a_addr)/sizeof(uint8_t); i++) {
+         ip->a_addr[i] = ip_buf[i];
+    }
+}
+
 net_err_t ipaddr_from_str(ip_addr_t * dest, const char* str) {
     // 必要的参数检查
     if (!dest || !str) {
@@ -98,11 +104,8 @@ void ipaddr_copy(ip_addr_t * dest, const ip_addr_t * src) {
     dest->q_addr = src->q_addr;
 }
 
-ip_addr_t ipaddr_get_host(const ip_addr_t * ipaddr, const ip_addr_t * netmask) {
-    ip_addr_t hostid;
-
-    hostid.q_addr = ipaddr->q_addr & ~netmask->q_addr;
-    return hostid;
+uint32_t ipaddr_get_host(const ip_addr_t * ipaddr, const ip_addr_t * netmask) {
+    return ipaddr->q_addr & ~netmask->q_addr;
 }
 ip_addr_t ipaddr_get_net(const ip_addr_t * ipaddr, const ip_addr_t * netmask) {
     ip_addr_t netid;
@@ -111,10 +114,10 @@ ip_addr_t ipaddr_get_net(const ip_addr_t * ipaddr, const ip_addr_t * netmask) {
     return netid;
 }
 int ipaddr_is_direct_broadcast(const ip_addr_t * ipaddr, const ip_addr_t * netmask) {
-    ip_addr_t hostid = ipaddr_get_host(ipaddr, netmask);
+    uint32_t hostid = ipaddr_get_host(ipaddr, netmask);
 
     // 判断host_id部分是否为全1
-    return hostid.q_addr == (IPV4_ADDR_BROADCAST & ~netmask->q_addr);
+    return hostid == (IPV4_ADDR_BROADCAST & ~netmask->q_addr);
 }
 
 bool ipaddr_is_match(const ip_addr_t* dest, const ip_addr_t *src, const ip_addr_t *netmask) {

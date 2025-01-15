@@ -20,8 +20,8 @@ net_err_t init_netdev() {
     if (!netif) {
         return NET_ERR_IO;
     }
-static const char netdev0_ip[] = "192.168.177.2";
-static const char netdev0_gw[] = "192.168.177.1";
+static const char netdev0_ip[] = "10.3.208.99"; //"192.168.1.99";
+static const char netdev0_gw[] = "10.3.208.1"; //"192.168.1.1";
 static const char netdev0_mask[] = "255.255.255.0";
     // 生成相应的地址
     ip_addr_t ip, mask, gw;

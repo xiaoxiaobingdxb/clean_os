@@ -89,6 +89,7 @@ void route_remove(ip_desc_t *desc);
 ip_route_entry_t* route_find(ip_addr_t *ip);
 
 void ip_addr_to_buf(ip_addr_t *ip, uint8_t* ip_buf);
+void ip_addr_from_buf(ip_addr_t *ip, uint8_t *ip_buf);
 
 net_err_t ipaddr_from_str(ip_addr_t * dest, const char* str);
 ip_addr_t* ipaddr_get_any();
