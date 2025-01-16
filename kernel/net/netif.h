@@ -44,6 +44,7 @@ typedef struct _netif_t {
         NETIF_ACTIVE,
     } state;
     netif_type_t type;
+    int mtu;
     const netif_ops_t* ops;
     void *ops_data;
     const link_layer_t *link_layer;

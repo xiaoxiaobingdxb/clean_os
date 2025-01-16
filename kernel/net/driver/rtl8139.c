@@ -10,6 +10,8 @@
 #include "driver.h"
 #include "../util.h"
 
+#define rtl8139_mtu 1500
+
 
 static rtl8139_priv_t *priv;
 netif_t *netif;
@@ -255,6 +257,7 @@ net_err_t rtl8139_open(struct _netif_t *p_netif, void *ops_data) {
         netif->mac[i] = inb(bar.io_base + i);
     }
     netif->type = NETIF_TYPE_ETHER;
+    netif->mtu = rtl8139_mtu;
     char *macStr = "aa:bb:cc:dd:ee:ff";
     mac2str(netif->mac, macStr);
     log_debug("mac:%s\n", macStr);
