@@ -111,7 +111,10 @@ net_err_t do_netif_in(exmsg_t *msg) {
                 log_warn("netif_in failed, err=%d\n", err);
             }
         } else {
-            pktbuf_free(buf);
+            err = ipv4_in(netif, buf);
+            if (err < 0) {
+                pktbuf_free(buf);
+            }
             log_err("no link_layer");
         }
     }

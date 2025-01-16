@@ -1,7 +1,8 @@
 #include "arp.h"
-#include "ehter.h"
+#include "ether.h"
 #include "common/tool/log.h"
 #include "mblock.h"
+#include "common/types/basic.h"
 
 typedef struct {
     uint8_t paddr[IPV4_ADDR_SIZE];
@@ -245,4 +246,12 @@ net_err_t arp_update_from_ipbuf(netif_t *netif, pktbuf_t *buf) {
     if (ipaddr_is_match(&netif->ip_desc.ip_addr, &dest_ip, &netif->ip_desc.net_mask)) {
         cache_insert(netif, ip_hdr->src_ip, eth_hdr->src, 0);
     }
+}
+
+uint8_t* arp_find(ip_addr_t *ip) {
+    arp_entry_t *entry = cache_find(ip->a_addr);
+    if (!entry) {
+        return NULL;
+    }
+    return entry->haddr;
 }

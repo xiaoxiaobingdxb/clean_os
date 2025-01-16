@@ -4,9 +4,12 @@
 #include "common/types/basic.h"
 #include "common/lib/hlist.h"
 #include "net_err.h"
+#include "pktbuf.h"
 
 #define IPV4_ADDR_SIZE 4
 #define NET_VERSION_IPV4        4           // IPV4版本号
+
+static uint16_t packet_id = 0;                  // 每次发包的序号
 
 typedef struct {
     enum {
@@ -18,7 +21,7 @@ typedef struct {
         uint8_t a_addr[4];
     };
     char s_addr[15]; // 192.168.0001.0001
-    
+
 } ip_addr_t;
 
 typedef struct {
@@ -33,7 +36,7 @@ typedef struct {
     ip_addr_t next_hop;
 
     struct _netif_t *netif;
-    
+
     enum {
         NET_RT_LOCAL_NET,
         NET_RT_NETIF,
@@ -41,13 +44,14 @@ typedef struct {
         lis
     } type;
 
-    hlist_node_t node;
+//    hlist_node_t node;
+    nlist_node_t node;
 } ip_route_entry_t;
 
 #pragma pack(1)
 
 typedef struct {
-    union 
+    union
     {
         struct {
             uint16_t shdr: 4;
@@ -59,9 +63,9 @@ typedef struct {
     };
     uint16_t total_len;
     uint16_t id;
-    union 
+    union
     {
-        struct 
+        struct
         {
             uint16_t offset: 13;
             uint16_t more: 1;
@@ -75,7 +79,7 @@ typedef struct {
     uint16_t hdr_checksum;
     uint8_t src_ip[IPV4_ADDR_SIZE];
     uint8_t dest_ip[IPV4_ADDR_SIZE];
-    
+
 } ipv4_hdr_t;
 typedef struct {
     ipv4_hdr_t hdr;
@@ -84,6 +88,8 @@ typedef struct {
 #pragma pack()
 
 void init_ip();
+net_err_t ipv4_in(struct _netif_t *netif, pktbuf_t *buf);
+net_err_t  ipv4_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktbuf_t *buf);
 void route_add(ip_desc_t *desc, ip_addr_t *next_hop, struct _netif_t *netif);
 void route_remove(ip_desc_t *desc);
 ip_route_entry_t* route_find(ip_addr_t *ip);

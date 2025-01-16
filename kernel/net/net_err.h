@@ -11,6 +11,9 @@ typedef enum {
     NET_ERR_MEM = -7,
     NET_ERR_IO = -8,
     NET_ERR_NOT_SUPPORT = -9,
+    NET_ERR_NOT_MATCH = -10,
+    NET_ERR_CHECKSUM = -11,
+    NET_ERR_UNREACH = -12,
 } net_err_t;
 
 

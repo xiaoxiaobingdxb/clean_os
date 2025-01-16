@@ -4,7 +4,7 @@
 #include "net_err.h"
 #include "netif.h"
 #include "pktbuf.h"
-#include "ehter.h"
+#include "ether.h"
 
 // @ref https://wiki.osdev.org/Address_Resolution_Protocol
 #pragma pack(1)
@@ -24,4 +24,5 @@ typedef struct {
 void init_arp();
 net_err_t arp_in(netif_t *netif, pktbuf_t *buf);
 net_err_t arp_update_from_ipbuf(netif_t *netif, pktbuf_t *buf);
+uint8_t* arp_find(ip_addr_t *ip);
 #endif // NET_ARP_H
