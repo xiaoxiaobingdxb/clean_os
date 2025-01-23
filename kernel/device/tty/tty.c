@@ -38,6 +38,7 @@ tty_t *get_tty(device_t *dev) {
     }
     return ttys + dev->minor;
 }
+
 ssize_t tty_write(device_t *dev, uint32_t addr, const byte_t *buf,
                   size_t size) {
     tty_t *tty = get_tty(dev);
@@ -54,6 +55,7 @@ ssize_t tty_write(device_t *dev, uint32_t addr, const byte_t *buf,
         default:
             break;
         }
+
         console_putchar(tty->console_idx, (char)buf[i]);
         console_update_cursor_pos(tty->console_idx);
     }

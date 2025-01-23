@@ -5,8 +5,9 @@
 #include "common/lib/hlist.h"
 #include "net_err.h"
 #include "pktbuf.h"
+#include "protocol.h"
 
-#define IPV4_ADDR_SIZE 4
+
 #define NET_VERSION_IPV4        4           // IPV4版本号
 
 static uint16_t packet_id = 0;                  // 每次发包的序号
@@ -86,6 +87,8 @@ typedef struct {
     uint8_t data[1];
 } ipv4_pkt_t;
 #pragma pack()
+
+int ipv4_hdr_size(ipv4_hdr_t *hdr);
 
 void init_ip();
 net_err_t ipv4_in(struct _netif_t *netif, pktbuf_t *buf);

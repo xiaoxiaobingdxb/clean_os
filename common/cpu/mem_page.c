@@ -22,6 +22,8 @@
 // 以下表为临时使用，用于帮助内核正常运行，在内核运行起来之后，将重新设置
 static uint32_t old_page_dir[1024] __attribute__((aligned(KB(4)))) = {
     [0] = PDE_P | PDE_PS | PDE_W,  // PDE_PS，开启4MB的页
+    [1] = PDE_P | PDE_PS | PDE_W,  // PDE_PS，开启4MB的页
+    [3] = PDE_P | PDE_PS | PDE_W,  // PDE_PS，开启4MB的页
 };
 void enable_page_mode(void) {
     // 设置PSE，以便启用4M的页，而不是4KB

@@ -7,29 +7,29 @@
 #include "thread.h"
 
 uint32_t load_elf(uint8_t *file_buffer) {
-    Elf32_Ehdr *elf_hdr = (Elf32_Ehdr *)file_buffer;
+    Elf32_Ehdr *elf_hdr = (Elf32_Ehdr *) file_buffer;
     if ((elf_hdr->e_ident[0] != ELF_MAGIC) || (elf_hdr->e_ident[1] != 'E') ||
         (elf_hdr->e_ident[2] != 'L') || (elf_hdr->e_ident[3] != 'F')) {
         return 0;
     }
 
     for (int i = 0; i < elf_hdr->e_phnum; i++) {
-        Elf32_Phdr *phdr = (Elf32_Phdr *)(file_buffer + elf_hdr->e_phoff) + i;
+        Elf32_Phdr *phdr = (Elf32_Phdr * )(file_buffer + elf_hdr->e_phoff) + i;
         if (phdr->p_type != PT_LOAD) {
             continue;
         }
 
-        if (!process_mmap((void *)phdr->p_vaddr, phdr->p_memsz,
+        if (!process_mmap((void *) phdr->p_vaddr, phdr->p_memsz,
                           PROT_READ | PROT_WRITE, MAP_ANONYMOUS, 0, 0)) {
             return 0;
         }
-        uint8_t *dest = (uint8_t *)phdr->p_vaddr;
+        uint8_t *dest = (uint8_t *) phdr->p_vaddr;
         uint8_t *src = file_buffer + phdr->p_offset;
         for (int j = 0; j < phdr->p_filesz; j++) {
             *(dest + j) = *(src + j);
         }
 
-        dest = (uint8_t *)phdr->p_paddr + phdr->p_filesz;
+        dest = (uint8_t *) phdr->p_paddr + phdr->p_filesz;
         for (int j = 0; j < phdr->p_memsz - phdr->p_filesz; j++) {
             *dest++ = 0;
         }
@@ -59,21 +59,43 @@ void clear_user_mem() {
 }
 
 extern void _start_process(void *p_func, int argc, char *const argv[]);
-void exec(uint8_t *elf_buf, char *const argv[], char *const envp[]) {
+
+int strings_count(char **start) {
+    int count = 0;
+    if (start) {
+        while (*start++) {
+            count++;
+        }
+    }
+    return count;
+}
+
+void exec(uint8_t *elf_buf, char **argv, char *const envp[]) {
+    int argc = 0;
+    int all_len = 0;
+    void *copy_cache = NULL;
+    if (argv) {
+        argc = strings_count((char **) argv);
+        for (int i = 0; i < argc; i++) {
+            all_len += strlen(argv[i]);
+        }
+        copy_cache = kernel_mallocator.malloc(all_len + argc);
+        memcpy(copy_cache, argv, all_len + argc);
+    }
     clear_user_mem();
+    if (argv) {
+        void *user_argv = process_mmap(NULL, all_len + argc, 0, 0, 0, 0);
+//        void *user_argv = user_mallocator.malloc(all_len + argc);
+        memcpy(user_argv, copy_cache, all_len + argc);
+        free(copy_cache);
+        argv = (char**)user_argv;
+    }
     uint32_t entry = load_elf(elf_buf);
     if (!entry) {
         return;
     }
     kernel_mallocator.free(elf_buf);
-    
-    int argc = 0;
-    if (argv) {
-        while (argv[argc]) {
-            argc++;
-        }
-    }
-    _start_process((void *)entry, argc, argv);
+    _start_process((void *) entry, argc, argv);
 }
 
 void rename_process_name(const char *filename) {
@@ -115,6 +137,6 @@ int process_execve(const char *filename, char *const argv[],
     kernel_mallocator.free(read_buf);
     sys_close(fd);
     rename_process_name(filename);
-    exec(elf_buf, argv, envp);
+    exec(elf_buf, (char**)argv, envp);
     return 0;
 }

@@ -41,20 +41,24 @@
                     "ignoreFailures": false
                 },
                 {
-                    "text": "add-symbol-file ./build/kernel/kernel.elf 0x10000",
+                    "text": "add-symbol-file ./build/kernel/kernel.elf 0x100000",
                     "ignoreFailures": false
                 },
                 // {
                 //     "text": "-exec-until *0x7c00",
                 //     "ignoreFailures": false
                 // }
+                // {
+                    // "text": "add-symbol-file ./build/app/init/init.elf 0x41000000",
+                    // "ignoreFailures": false
+                // },
+                // {
+                //     "text": "add-symbol-file ./build/app/shell/shell.elf 0x41000000",
+                //     "ignoreFailures": false
+                // },
                 {
-                    "text": "add-symbol-file ./build/app/init/init.elf 0x41000000",
-                    "ignoreFailures": false
-                },
-                {
-                    "text": "add-symbol-file ./build/app/shell/shell.elf 0x41000000",
-                    "ignoreFailures": false
+                        "text": "add-symbol-file ./build/app/net/udp/net_udp.elf 0x41000000",
+                        "ignoreFailures": false
                 },
                 
             ]

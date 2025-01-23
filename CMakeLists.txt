@@ -47,12 +47,13 @@ add_subdirectory(app/shell)
 add_subdirectory(kernel)
 add_subdirectory(applib)
 add_subdirectory(app/init)
+add_subdirectory(app/net/udp)
 
 add_dependencies(boot common)
 add_dependencies(loader common)
 add_dependencies(glibc common)
 add_dependencies(shell app glibc common)
+add_dependencies(net_udp app glibc common)
 add_dependencies(app app glibc common)
 add_dependencies(kernel common app glibc)
-
 

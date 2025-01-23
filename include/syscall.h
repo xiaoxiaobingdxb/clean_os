@@ -4,6 +4,7 @@
 #include "common/types/basic.h"
 #include "fs_model.h"
 #include "task_model.h"
+#include "socket.h"
 
 #define PROT_NONE 0x0  /* page can not be accessed */
 #define PROT_READ 0x1  /* page can be read */

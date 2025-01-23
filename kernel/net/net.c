@@ -5,6 +5,8 @@
 #include "../thread/thread.h"
 #include "exmsg.h"
 #include "arp.h"
+#include "sock.h"
+#include "udp.h"
 
 net_err_t netif_set_addr(netif_t *netif, ip_addr_t *ip, ip_addr_t *netmask, ip_addr_t *gateway) {
     ipaddr_copy(&netif->ip_desc.ip_addr, ip ? ip : ipaddr_get_any());
@@ -21,10 +23,10 @@ net_err_t init_netdev() {
     if (!netif) {
         return NET_ERR_IO;
     }
-//static const char netdev0_ip[] = "10.3.208.99";
-//static const char netdev0_gw[] = "10.3.208.1";
-    static const char netdev0_ip[] = "192.168.1.99";
-    static const char netdev0_gw[] = "192.168.1.1";
+static const char netdev0_ip[] = "10.3.208.99";
+static const char netdev0_gw[] = "10.3.208.1";
+//    static const char netdev0_ip[] = "192.168.1.99";
+//    static const char netdev0_gw[] = "192.168.1.1";
     static const char netdev0_mask[] = "255.255.224.0";
     // 生成相应的地址
     ip_addr_t ip, mask, gw;
@@ -52,6 +54,8 @@ net_err_t init_net() {
     init_ether();
     init_arp();
     init_ip();
+    init_socket();
+    init_udp();
     init_netdev();
 
     net_start();

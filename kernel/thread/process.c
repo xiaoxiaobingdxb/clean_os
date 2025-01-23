@@ -47,7 +47,7 @@ void process_kernel2user(task_struct *thread, void *p_func, void *user_stack) {
         : "memory");
 }
 
-void _start_process(void *p_func, int argc, char *const argv[]) {
+void _start_process(void *p_func, int argc, char ** argv) {
     task_struct *thread = cur_thread();
     // alloc a page for user mode stack, and assign esp to to page end to be
     // stack top
@@ -306,15 +306,17 @@ int process_sysinfo(uint32_t pid, sys_info *info, int flags) {
         extern phy_addr_alloc_t kernel_phy_addr_alloc;
         extern vir_addr_alloc_t kernel_vir_addr_alloc;
         extern phy_addr_alloc_t user_phy_addr_alloc;
+        info->mem_info.kernel_total = kernel_vir_addr_alloc.bitmap.bytes_len * 8 * kernel_vir_addr_alloc.page_size;
+        info->mem_info.user_total = user_phy_addr_alloc.bitmap.bytes_len * 8 * user_phy_addr_alloc.page_size;
         uint32_t kernel_page_count = count_mem_used(&kernel_vir_addr_alloc);
         uint32_t user_page_count = count_mem_used(&task->vir_addr_alloc);
         uint32_t kernel_phy_page_count = count_mem_used(&kernel_phy_addr_alloc);
         uint32_t user_phy_page_count = count_mem_used(&user_phy_addr_alloc);
-        info->mem_info.kernel_mem_used = kernel_page_count * MEM_PAGE_SIZE;
-        info->mem_info.user_mem_used = user_page_count * MEM_PAGE_SIZE;
+        info->mem_info.kernel_mem_used = kernel_page_count * kernel_vir_addr_alloc.page_size;
+        info->mem_info.user_mem_used = user_page_count * user_phy_addr_alloc.page_size;
         info->mem_info.kernel_phy_mem_used =
-            kernel_phy_page_count * MEM_PAGE_SIZE;
-        info->mem_info.user_phy_mem_used = user_phy_page_count * MEM_PAGE_SIZE;
+            kernel_phy_page_count * kernel_phy_addr_alloc.page_size;
+        info->mem_info.user_phy_mem_used = user_phy_page_count * user_phy_addr_alloc.page_size;
     }
     info->mem_info.mem_page_size = MEM_PAGE_SIZE;
     memcpy(info->pwd, task->pwd, sizeof(task->pwd));

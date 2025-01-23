@@ -25,5 +25,5 @@ SECTIONS
     }
     PROVIDE(e_data = .);
 
-    PROVIDE(mem_free_start = e_data);
+    PROVIDE(mem_free_start = 0x200000);
 }

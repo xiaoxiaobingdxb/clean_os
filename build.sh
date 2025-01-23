@@ -29,9 +29,9 @@ build_kernel() {
 build_app() {
     rm -rf glibc
     cmake -DKERNEL=0 ../
-    make shell init
+    make shell init net_udp
 
-    echo "rm init\n rm shell\n write app/init.bin init\n write app/shell.bin shell\n q\n" | $(brew --prefix e2fsprogs)/sbin/debugfs -w ../file_ext2.dmg
+    echo "rm init\n rm shell\n rm udp\n write app/init.bin init\n write app/shell.bin shell\n write app/net_udp.bin udp\n q\n" | $(brew --prefix e2fsprogs)/sbin/debugfs -w ../file_ext2.dmg
 }
 
 if [[ $# > 0 && $@[@] =~ "kernel" || $# == 0 ]]; then

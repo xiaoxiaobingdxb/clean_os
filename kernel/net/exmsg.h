@@ -14,6 +14,7 @@
 #include "nlist.h"
 #include "netif.h"
 #include "pktbuf.h"
+#include "../thread/thread.h"
 
 struct _func_msg_t;
 typedef net_err_t(*exmsg_func_t)(struct _func_msg_t* msg);
@@ -23,10 +24,13 @@ struct _req_msg_t;
  * 工作函数调用
  */
 typedef struct _func_msg_t {
+    uint32_t thread_page_dir;        // 当前执行调用的线程
+
     exmsg_func_t func;         // 被调用函数
     void* param;            // 参数
     net_err_t err;          // 错误码
 
+    segment_t wait_sem;     // 等待信号量
 }func_msg_t;
 
 /**

@@ -29,7 +29,7 @@ net_err_t icmp_pkt_check(icmp_hdr_t *hdr, int size, pktbuf_t *buf) {
     if (size <= sizeof(icmp_hdr_t)) {
         return NET_ERR_SIZE;
     }
-    uint16_t  checksum = pktbuf_checksum16(buf, size, 0, 1);
+    uint16_t checksum = pktbuf_checksum16(buf, size, 0, 1);
     if (checksum != 0) {
         return NET_ERR_CHECKSUM;
     }
@@ -37,7 +37,7 @@ net_err_t icmp_pkt_check(icmp_hdr_t *hdr, int size, pktbuf_t *buf) {
 }
 
 net_err_t icmp_echo_reply(ip_addr_t *src, ip_addr_t *dest, pktbuf_t *buf) {
-    icmp_pkt_t *pkt = (icmp_pkt_t*) pktbuf_data(buf);
+    icmp_pkt_t *pkt = (icmp_pkt_t *) pktbuf_data(buf);
     pkt->hdr.type = ICMP_ECHO_REPLY;
     pkt->hdr.checksum = 0;
     return icmp_out(dest, src, buf);
@@ -45,7 +45,7 @@ net_err_t icmp_echo_reply(ip_addr_t *src, ip_addr_t *dest, pktbuf_t *buf) {
 
 net_err_t icmp_in(ip_addr_t *src, ip_addr_t *dest, pktbuf_t *buf) {
     ipv4_pkt_t *ip_pkt = (ipv4_pkt_t *) pktbuf_data(buf);
-    int hdr_size = ip_pkt->hdr.shdr * 4;
+    int hdr_size = ipv4_hdr_size(&ip_pkt->hdr);
 
     net_err_t err = pktbuf_set_cont(buf, sizeof(icmp_hdr_t) + hdr_size);
     if (err < 0) {
@@ -71,7 +71,7 @@ net_err_t icmp_in(ip_addr_t *src, ip_addr_t *dest, pktbuf_t *buf) {
 }
 
 net_err_t icmp_out(ip_addr_t *src, ip_addr_t *dest, pktbuf_t *buf) {
-    icmp_pkt_t *pkt = (icmp_pkt_t*) pktbuf_data(buf);
+    icmp_pkt_t *pkt = (icmp_pkt_t *) pktbuf_data(buf);
     pktbuf_seek(buf, 0);
     pkt->hdr.checksum = pktbuf_checksum16(buf, buf->total_size, 0, 1);
     ipv4_out(NET_PROTOCOL_ICMPv4, dest, src, buf);

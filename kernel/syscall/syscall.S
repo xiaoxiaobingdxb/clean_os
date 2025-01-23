@@ -19,6 +19,12 @@ intr_entry_syscall:
     push %ecx
     push %ebx
 
+    // refresh cpu tlb
+    push %eax
+    mov %cr3, %eax
+    mov %eax, %cr3
+    pop %eax
+
     call  *syscall_table(,%eax, 4)
     add $0x14, %esp // pop ebx, ecx, edx
     mov $0x8, %ecx

@@ -11,8 +11,11 @@
 #include "fixq.h"
 #include "mblock.h"
 #include "common/tool/log.h"
+#include "common/cpu/mem_page.h"
+#include "common/cpu/contrl.h"
+
 #define EXMSG_MSG_CNT          10                 // 消息缓冲区大小
-static void * msg_tbl[EXMSG_MSG_CNT];  // 消息缓冲区
+static void *msg_tbl[EXMSG_MSG_CNT];  // 消息缓冲区
 static fixq_t msg_queue;            // 消息队列
 static exmsg_t msg_buffer[EXMSG_MSG_CNT];  // 消息块
 static mblock_t msg_block;          // 消息分配器
@@ -20,9 +23,9 @@ static mblock_t msg_block;          // 消息分配器
 /**
  * @brief 收到来自网卡的消息
  */
-net_err_t exmsg_netif_in(netif_t* netif) {
+net_err_t exmsg_netif_in(netif_t *netif) {
     // 分配一个消息结构
-    exmsg_t* msg = mblock_alloc(&msg_block, -1);
+    exmsg_t *msg = mblock_alloc(&msg_block, -1);
     if (!msg) {
         return NET_ERR_MEM;
     }
@@ -45,16 +48,17 @@ net_err_t exmsg_netif_in(netif_t* netif) {
 /**
  * @brief 执行内部工作函数调用
  */
-net_err_t exmsg_func_exec(exmsg_func_t func, void * param) {
+net_err_t exmsg_func_exec(exmsg_func_t func, void *param) {
     // 构造消息
     func_msg_t func_msg;
+    func_msg.thread_page_dir = cur_thread()->page_dir;
     func_msg.func = func;
     func_msg.param = param;
     func_msg.err = NET_ERR_OK;
 
     // 分配消息结构
-    exmsg_t* msg = (exmsg_t*)mblock_alloc(&msg_block, 0);
-    msg->type = NET_EXMSG_FUN; 
+    exmsg_t *msg = (exmsg_t *) mblock_alloc(&msg_block, 0);
+    msg->type = NET_EXMSG_FUN;
     msg->func = &func_msg;
 
     // 发消息给工作线程去执行
@@ -63,6 +67,9 @@ net_err_t exmsg_func_exec(exmsg_func_t func, void * param) {
         mblock_free(&msg_block, msg);
         return err;
     }
+    // 等待执行完成
+    init_segment(&func_msg.wait_sem, 0);
+    segment_wait(&func_msg.wait_sem, NULL);
 
     return func_msg.err;
 }
@@ -70,10 +77,10 @@ net_err_t exmsg_func_exec(exmsg_func_t func, void * param) {
 /**
  * @brief 执行工作函数
  */
-static net_err_t do_func(func_msg_t* func_msg) {
-    
-    func_msg->err = func_msg->func(func_msg);
+static net_err_t do_func(func_msg_t *func_msg) {
 
+    func_msg->err = func_msg->func(func_msg);
+    segment_wakeup(&func_msg->wait_sem, NULL);
     return NET_ERR_OK;
 }
 
@@ -100,8 +107,8 @@ net_err_t exmsg_init(void) {
 
 net_err_t do_netif_in(exmsg_t *msg) {
     netif_t *netif = msg->netif.netif;
-    pktbuf_t *buf;
-    while( (buf = netif_get_in(netif, -1))) {
+    pktbuf_t * buf;
+    while ((buf = netif_get_in(netif, -1))) {
         log_debug("receive a packet\n");
         net_err_t err;
         if (netif->link_layer) {
@@ -124,19 +131,29 @@ net_err_t do_netif_in(exmsg_t *msg) {
 void net_work_thread(void *args) {
     log_debug("exmsg running...\n");
     while (1) {
-        exmsg_t *msg = (exmsg_t*)fixq_recv(&msg_queue, 0);
+        exmsg_t *msg = (exmsg_t *) fixq_recv(&msg_queue, 0);
         if (msg) {
             log_debug("receive msg(%d)\n", msg->type);
-            switch (msg->type)
-            {
-            case NET_EXMSG_NETIF_IN:
-                do_netif_in(msg);
-                break;
-            default:
-                break;
+            switch (msg->type) {
+                case NET_EXMSG_NETIF_IN: {
+                    do_netif_in(msg);
+                    break;
+                }
+                case NET_EXMSG_FUN: {              // API消息
+                    uint32_t old_page_dir = cur_thread()->page_dir;
+                    if (msg->func->thread_page_dir) {
+                        // 切换页表，方便读取请求线程的数据
+                        set_page_dir(msg->func->thread_page_dir);
+                    }
+                    do_func(msg->func);
+                    set_page_dir(old_page_dir);
+                    break;
+                }
+                default:
+                    break;
             }
             mblock_free(&msg_block, msg);
         }
     }
-    
+
 }

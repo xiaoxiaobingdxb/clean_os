@@ -292,7 +292,7 @@ int create_big_mem_map(pde_t *page_dir, uint32_t vaddr, uint32_t size,
 }
 
 #define EBDA_START 0x00080000
-#define MEM_EXT_START MB(1)
+#define MEM_EXT_START MB(3)
 
 uint64_t phy_all_mem;
 uint64_t kernel_all_memory;

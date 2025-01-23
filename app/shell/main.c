@@ -8,6 +8,7 @@
 #include "include/syscall.h"
 
 fd_t stdio_fd;
+
 void init_shell_std() {
     stdio_fd = open("/dev/tty0", TTY_OUT_LINE | TTY_OUT_R_N | TTY_OUT_ECHO);
     dup2(STDIN_FILENO, stdio_fd);
@@ -16,6 +17,7 @@ void init_shell_std() {
 }
 
 extern void shell_main();
+
 void init_shell() {
     init_shell_std();
     shell_main();
@@ -28,6 +30,7 @@ int main(int argc, char **argv) {
 typedef struct {
     const char *name;
     const char *usage;
+
     int (*func)(int argc, char **argv);
 } cmd_t;
 
@@ -38,8 +41,9 @@ void show_prompt() { printf("shell >>"); }
 error get_input_file_path(int argc, char **argv, char *path);
 
 #define ARG_COUNT_MAX 10
+
 void shell_main() {
-    char *buf = (char *)malloc(1024);
+    char *buf = (char *) malloc(1024);
     char *save_ptr;
     while (true) {
         show_prompt();
@@ -105,62 +109,87 @@ void shell_main() {
     int do_##name(int argc, char *argv[])
 
 declare_cmd_func(man);
+
 declare_cmd_func(clear);
+
 declare_cmd_func(list);
+
 declare_cmd_func(pwd);
+
 declare_cmd_func(free);
+
 declare_cmd_func(echo);
+
 declare_cmd_func(cat);
+
 declare_cmd_func(date);
+
 declare_cmd_func(exec);
 
-
 cmd_t cmd_list[] = {
-    {
-        .name = "man",
-        .usage = "show help for command",
-        .func = do_man,
-    },
-    {
-        .name = "clear",
-        .usage = "clear the screen",
-        .func = do_clear,
-    },
-    {
-        .name = "ls",
-        .usage = "list children for dir",
-        .func = do_list,
-    },
-    {
-        .name = "pwd",
-        .usage = "show process working dir",
-        .func = do_pwd,
-    },
-    {
-        .name = "free",
-        .usage = "show memory usage info",
-        .func = do_free,
-    },
-    {
-        .name = "echo",
-        .usage = "show message into screen",
-        .func = do_echo,
-    },
-    {
-        .name = "cat",
-        .usage = "print file content",
-        .func = do_cat,
-    },
-    {
-        .name = "date",
-        .usage = "display or set date and time",
-        .func = do_date,
-    },
-    {
-        .name = "exec",
-        .usage = "execute a program",
-        .func = do_exec,
-    },
+        {
+                .name = "man",
+                .usage = "show help for command",
+                .func = do_man,
+        },
+        {
+                .name = "clear",
+                .usage = "clear the screen",
+                .func = do_clear,
+        },
+        {
+                .name = "ls",
+                .usage = "list children for dir",
+                .func = do_list,
+        },
+        {
+                .name = "pwd",
+                .usage = "show process working dir",
+                .func = do_pwd,
+        },
+        {
+                .name = "free",
+                .usage = "show memory usage infoUsage:\n"
+                         "free [options]\n"
+                         "\n"
+                         "Options:\n"
+                         " -b                  show output in bytes\n"
+                         " -k                  show output in kibibytes\n"
+                         " -m                  show output in mebibytes\n"
+                         " -g                  show output in gibibytes\n"
+                         " -h                  show human-readable output\n"
+                         //                 " -l, --lohi          show detailed low and high memory statistics\n"
+                         //                 " -t, --total         show total for RAM + swap\n"
+                         //                 " -v, --committed     show committed memory and commit limit\n"
+                         //                 " -s N, --seconds N   repeat printing every N seconds\n"
+                         //                 " -c N, --count N     repeat printing N times, then exit\n"
+                         //                 " -w, --wide          wide output\n"
+                         "\n"
+//                 "     --help     display this help and exit\n"
+//                 " -V, --version  output version information and exit",
+                ,
+                .func = do_free,
+        },
+        {
+                .name = "echo",
+                .usage = "show message into screen",
+                .func = do_echo,
+        },
+        {
+                .name = "cat",
+                .usage = "print file content",
+                .func = do_cat,
+        },
+        {
+                .name = "date",
+                .usage = "display or set date and time",
+                .func = do_date,
+        },
+        {
+                .name = "exec",
+                .usage = "execute a program",
+                .func = do_exec,
+        },
 };
 
 cmd_t *find_cmd(char *cmd_str) {
@@ -199,6 +228,7 @@ declare_cmd_func(man) {
     printf("%s\n", cmd->usage);
     return 0;
 }
+
 declare_cmd_func(clear) {
     printf("%c[2J", 0x1b);
     return 0;
@@ -248,7 +278,7 @@ declare_cmd_func(list) {
     while (readdir(fd, dirent) == 0) {
         printf("%d %d %s\n", dirent->child_count, dirent->size, dirent->name);
     }
-finallly:
+    finallly:
     if (fd >= 0) {
         close(fd);
     }
@@ -273,17 +303,96 @@ declare_cmd_func(pwd) {
     return 0;
 }
 
+#define byte_scale  1024
+
+uint32_t readable_unit(uint32_t value, char *unit) {
+    if (value < byte_scale) {
+        sprintf(unit, "byte");
+        return value;
+    } else if (value < byte_scale * byte_scale) {
+        sprintf(unit, "kb");
+        return value / byte_scale;
+    } else if (value < byte_scale * byte_scale * byte_scale) {
+        sprintf(unit, "mb");
+        return value / byte_scale / byte_scale;
+    }
+    sprintf(unit, "gb");
+    return value / byte_scale / byte_scale / byte_scale;
+}
+
 declare_cmd_func(free) {
     sys_info info;
     pid_t pid = get_pid();
     if (pid < 0) {
         return -1;
     }
-    if (sysinfo(pid, &info, SYS_INFO_MEM) == 0) {
-        printf("kernel_phy:%d, kernel_vir:%d, user_phy:%d, user_vir:%d\n",
-               info.mem_info.kernel_phy_mem_used, info.mem_info.kernel_mem_used,
-               info.mem_info.user_phy_mem_used, info.mem_info.user_mem_used);
+    if (sysinfo(pid, &info, SYS_INFO_MEM) != 0) {
+        return -1;
     }
+    uint32_t kernel_total = info.mem_info.kernel_total;
+    uint32_t user_total = info.mem_info.user_total;
+    uint32_t kernel_phy = info.mem_info.kernel_phy_mem_used;
+    uint32_t kernel_used = info.mem_info.kernel_mem_used;
+    uint32_t user_phy = info.mem_info.user_phy_mem_used;
+    uint32_t user_used = info.mem_info.user_mem_used;
+    char *unit = "byte";
+    if (argc > 1) {
+        size_t strl = strlen(argv[1]) + 1;
+        char *option = malloc(strl);
+        memset(option, 0, strl);
+        memcpy(option, argv[1], strl);
+        trim(option);
+        if (strlen(option) < 2) {
+            printf("free: invalid option %s\n", option);
+            cmd_t *cmd = find_cmd("free");
+            if (cmd == NULL) {
+                return -1;
+            }
+            printf("%s\n", cmd->usage);
+            return -1;
+        }
+        uint32_t scale = 1;
+        if (option[1] == 'h') {
+            char *unit1 = "byte";
+            char *unit2 = "byte";
+            printf("               total        used\n"/*        free      shared  buff/cache   available*/);
+            kernel_total = readable_unit(kernel_total, unit1);
+            kernel_phy = readable_unit(kernel_phy, unit2);
+            printf("kernel_phy     %d%s         %d%s\n", kernel_total, unit1, kernel_phy, unit2);
+            kernel_used = readable_unit(kernel_used, unit2);
+            printf("kernel_vir     %d%s         %d%s\n", kernel_total, unit1, kernel_used, unit2);
+            user_total = readable_unit(user_total, unit1);
+            user_phy = readable_unit(user_phy, unit2);
+            printf("user_phy       %d%s         %d%s\n", user_total, unit1, user_phy, unit2);
+            user_used = readable_unit(user_used, unit2);
+            printf("user_vir       %d%s         %d%s\n", user_total, unit1, user_used, unit2);
+            return 0;
+        } else {
+            switch (option[1]) {
+                case 'k':
+                    scale = byte_scale;
+                    unit = "kb";
+                    break;
+                case 'm':
+                    unit = "mb";
+                    scale = byte_scale * byte_scale;
+                    break;
+                case 'g':
+                    unit = "gb";
+                    scale = byte_scale * byte_scale * byte_scale;
+                    break;
+            }
+            kernel_total /= scale;
+            kernel_phy /= scale;
+            kernel_used /= scale;
+            user_total /= scale;
+            user_phy /= scale;
+            user_used /= scale;
+        }
+    }
+    printf("               total        used\n"/*        free      shared  buff/cache   available*/);
+    printf("kernel_phy     %d%s         %d%s\n", kernel_total, unit, kernel_phy, unit);
+    printf("kernel_vir     %d%s         %d%s\n", kernel_total, unit, kernel_used, unit);
     return 0;
 }
 
@@ -325,7 +434,7 @@ declare_cmd_func(cat) {
     }
     printf("\n");
     free(read_buf);
-finallly:
+    finallly:
     if (path != NULL) {
         free(path);
     }
@@ -378,7 +487,7 @@ declare_cmd_func(exec) {
     }
     int status;
     wait(&status);
-finally:
+    finally:
     if (path) {
         free(path);
     }

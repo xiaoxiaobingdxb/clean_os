@@ -8,6 +8,7 @@
 #include "common/tool/math.h"
 #include "include/syscall_no.h"
 #include "../time/time.h"
+#include "../net/socket.h"
 
 #define SYSCALL_SIZE 512
 #define SYSCALL_INTR_NO 0x80
@@ -59,6 +60,16 @@ void init_syscall() {
     syscall_register(SYSCALL_link, sys_link);
     syscall_register(SYSCALL_symlink, sys_symlink);
     syscall_register(SYSCALL_unlink, sys_link);
+
+    syscall_register(SYSCALL_socket, create_socket);
+    syscall_register(SYSCALL_bind, socket_bind);
+    syscall_register(SYSCALL_listen,socket_listen);
+    syscall_register(SYSCALL_accept,socket_accept);
+    syscall_register(SYSCALL_send_to,socket_send_to);
+    syscall_register(SYSCALL_receive_from,socket_receive_from);
+    syscall_register(SYSCALL_send,socket_send);
+    syscall_register(SYSCALL_receive,socket_receive);
+    syscall_register(SYSCALL_setsockopt,set_sock_opt);
 
     syscall_register(SYSCALL_timestamp, sys_timestamp);
 

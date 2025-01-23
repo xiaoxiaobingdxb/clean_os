@@ -6,6 +6,7 @@
 #include "icmp.h"
 #include "common/tool/log.h"
 #include "mblock.h"
+#include "udp.h"
 
 #define IPV4_ADDR_BROADCAST 0xffffffff
 
@@ -68,7 +69,7 @@ net_err_t ipv4_normal_in(netif_t *netif, ip_addr_t *src, ip_addr_t *desc, pktbuf
         case NET_PROTOCOL_ICMPv4:
             return icmp_in(src, &netif->ip_desc.ip_addr, buf);
         case NET_PROTOCOL_UDP:
-            break;
+            return udp_in(buf, src, desc);
         case NET_PROTOCOL_TCP:
             break;
         default:
@@ -277,7 +278,8 @@ net_err_t ipv4_in(netif_t *netif, pktbuf_t *buf) {
     }
 }
 
-net_err_t  ipv4_frag_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktbuf_t *buf, ip_addr_t *next, netif_t *netif) {
+net_err_t
+ipv4_frag_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktbuf_t *buf, ip_addr_t *next, netif_t *netif) {
     // 重新定位读取地址
     pktbuf_reset_acc(buf);
 
@@ -305,10 +307,10 @@ net_err_t  ipv4_frag_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktb
         }
 
         // 2.写IP包头
-        ipv4_pkt_t * pkt = (ipv4_pkt_t *)pktbuf_data(dest_buf);
+        ipv4_pkt_t * pkt = (ipv4_pkt_t *) pktbuf_data(dest_buf);
         pkt->hdr.shdr_all = 0;       // 先清零0
         pkt->hdr.version = NET_VERSION_IPV4;
-        pkt->hdr.shdr = sizeof(ipv4_hdr_t)/4;
+        pkt->hdr.shdr = sizeof(ipv4_hdr_t) / 4;
         pkt->hdr.total_len = dest_buf->total_size;
         pkt->hdr.id = packet_id;         //分片发送，该id保持不变
         pkt->hdr.frag_all = 0;           // 暂时清0分片配置
@@ -364,6 +366,7 @@ net_err_t  ipv4_frag_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktb
     pktbuf_free(buf);
     return NET_ERR_OK;
 }
+
 net_err_t ipv4_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktbuf_t *buf) {
     ip_route_entry_t *rt = route_find(dest);
     if (rt == NULL) {
@@ -377,7 +380,7 @@ net_err_t ipv4_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktbuf_t *
     }
 
     if (rt->netif->mtu && ((buf->total_size + sizeof(ipv4_hdr_t)) > rt->netif->mtu)) {
-        net_err_t  err = ipv4_frag_out(protocol, dest, src, buf, &next_hop, rt->netif);
+        net_err_t err = ipv4_frag_out(protocol, dest, src, buf, &next_hop, rt->netif);
         if (err < 0) {
             return err;
         }
@@ -406,7 +409,7 @@ net_err_t ipv4_out(uint8_t protocol, ip_addr_t *dest, ip_addr_t *src, pktbuf_t *
     ip_addr_to_buf(dest, pkt->hdr.dest_ip);
     iphdr_htons(&pkt->hdr);
     pktbuf_reset_acc(buf);
-    pkt->hdr.hdr_checksum = pktbuf_checksum16(buf, pkt->hdr.shdr * 4, 0, 1);
+    pkt->hdr.hdr_checksum = pktbuf_checksum16(buf, ipv4_hdr_size(&pkt->hdr), 0, 1);
     err = netif_out(rt->netif, &next_hop, buf);
     return err;
 }

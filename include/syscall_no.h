@@ -36,6 +36,17 @@ enum syscall_no_ {
     SYSCALL_symlink,
     SYSCALL_unlink,
 
+    // net
+    SYSCALL_socket,
+    SYSCALL_bind,
+    SYSCALL_listen,
+    SYSCALL_accept,
+    SYSCALL_send_to,
+    SYSCALL_receive_from,
+    SYSCALL_send,
+    SYSCALL_receive,
+    SYSCALL_setsockopt,
+
     SYSCALL_timestamp,
 };
 

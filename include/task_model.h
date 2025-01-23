@@ -9,6 +9,8 @@ typedef struct {
 } cpu_info;
 
 typedef struct {
+    uint32_t kernel_total;
+    uint32_t user_total;
     uint32_t kernel_mem_used;
     uint32_t user_mem_used;
     uint32_t kernel_phy_mem_used;
