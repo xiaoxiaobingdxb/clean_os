@@ -1,14 +1,5 @@
-﻿/**
- * @brief TCP/IP核心线程通信模块
- * 此处运行了一个核心线程，所有TCP/IP中相关的事件都交由该线程处理
- * @author lishutong (527676163@qq.com)
- * @version 0.1
- * @date 2022-08-19
- * @copyright Copyright (c) 2022
- * @note
- */
-#ifndef EXMSG_H
-#define EXMSG_H
+﻿#ifndef NET_EXMSG_H
+#define NET_EXMSG_H
 
 #include "net_err.h"
 #include "nlist.h"
@@ -63,4 +54,4 @@ net_err_t exmsg_start(void);
 net_err_t exmsg_netif_in(netif_t* netif);
 net_err_t exmsg_func_exec(exmsg_func_t func, void* param);
 
-#endif // EXMSG_H
+#endif // NET_EXMSG_H
