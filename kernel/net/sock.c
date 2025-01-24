@@ -61,6 +61,7 @@ void sock_uninit(sock_t *sock) {
 
 net_err_t sock_wait_init(sock_wait_t *wait) {
     wait->waiting = 0;
+    init_segment(&wait->sem, 0);
 }
 
 net_err_t sock_bind(sock_t *sock, const sock_addr_t *addr, sock_len_t len) {

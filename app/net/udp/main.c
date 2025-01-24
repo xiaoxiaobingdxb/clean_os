@@ -28,7 +28,6 @@ void udp_process() {
         memset(buf, 0, 10);
         receive(sock_fd, buf, 4, 0, NULL);
         printf("receive:%s\n", buf);
-        yield();
     }
 }
 

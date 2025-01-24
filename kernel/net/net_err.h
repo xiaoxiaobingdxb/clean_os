@@ -1,6 +1,7 @@
 #if !defined(NET_NET_ERR_H)
 #define NET_NET_ERR_H
 typedef enum {
+    NET_ERR_NEED_WAIT = 1,
     NET_ERR_OK = 0,
     NET_ERR_PARAM = -1,
     NET_ERR_EXIST = -2,
@@ -17,7 +18,6 @@ typedef enum {
     NET_ERR_BINDED = -13,
     NET_ERR_CLOSE = -14,
     NET_ERR_EOF = -15,
-    NET_ERR_NEED_WAIT = 16,
 } net_err_t;
 
 
