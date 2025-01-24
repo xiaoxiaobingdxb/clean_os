@@ -97,7 +97,7 @@ udp_t *udp_find(ip_addr_t *src_ip, uint16_t src_port, ip_addr_t *dest_ip, uint16
     nlist_node_t *node;
     nlist_for_each(node, &udp_list) {
         udp_t *udp = (udp_t *) nlist_entry(node, sock_t, node);
-        if (dest_ip->q_addr != 0 && udp->sock.local_ip.q_addr != dest_ip->q_addr) {
+        if (udp->sock.local_ip.q_addr != 0 && udp->sock.local_ip.q_addr != dest_ip->q_addr) {
             continue;
         }
         if (dest_port != 0 && udp->sock.local_port != dest_port) {
