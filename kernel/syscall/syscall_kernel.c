@@ -65,6 +65,7 @@ void init_syscall() {
     syscall_register(SYSCALL_bind, socket_bind);
     syscall_register(SYSCALL_listen,socket_listen);
     syscall_register(SYSCALL_accept,socket_accept);
+    syscall_register(SYSCALL_connect, socket_connect);
     syscall_register(SYSCALL_send_to,socket_send_to);
     syscall_register(SYSCALL_receive_from,socket_receive_from);
     syscall_register(SYSCALL_send,socket_send);

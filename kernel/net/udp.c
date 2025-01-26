@@ -28,7 +28,7 @@ typedef struct {
 typedef struct {
     ip_addr_t from;
     uint16_t port;
-}udp_from_t;
+} udp_from_t;
 
 typedef struct {
     sock_t sock;
@@ -64,6 +64,7 @@ net_err_t udp_close(sock_t *sock) {
 net_err_t udp_set_opt(sock_t *sock, int level, int opt_name, const char *opt_val, int option) {
     return NET_ERR_OK;
 }
+
 net_err_t udp_bind(sock_t *sock, const sock_addr_t *addr, sock_len_t len) {
     if (sock->local_ip.q_addr != 0) {
         return NET_ERR_BINDED;
@@ -76,7 +77,7 @@ net_err_t udp_bind(sock_t *sock, const sock_addr_t *addr, sock_len_t len) {
     udp_t *udp;
     nlist_node_t * node;
     nlist_for_each(node, &udp_list) {
-        udp_t *get_udp = (udp_t *)nlist_entry(node, sock_t, node);
+        udp_t *get_udp = (udp_t *) nlist_entry(node, sock_t, node);
         if ((sock_t *) get_udp == sock) {
             continue;
         }
@@ -94,7 +95,7 @@ net_err_t udp_bind(sock_t *sock, const sock_addr_t *addr, sock_len_t len) {
 }
 
 udp_t *udp_find(ip_addr_t *src_ip, uint16_t src_port, ip_addr_t *dest_ip, uint16_t dest_port) {
-    nlist_node_t *node;
+    nlist_node_t * node;
     nlist_for_each(node, &udp_list) {
         udp_t *udp = (udp_t *) nlist_entry(node, sock_t, node);
         if (udp->sock.local_ip.q_addr != 0 && udp->sock.local_ip.q_addr != dest_ip->q_addr) {
@@ -115,14 +116,15 @@ udp_t *udp_find(ip_addr_t *src_ip, uint16_t src_port, ip_addr_t *dest_ip, uint16
 }
 
 net_err_t udp_connect(sock_t *sock, const sock_addr_t *addr, sock_len_t len) {
-
+    return sock_connect(sock, addr, len);
 }
 
 net_err_t udp_pkt_check(udp_pkt_t *pkt, int size) {
     return NET_ERR_OK;
 }
+
 net_err_t udp_in(pktbuf_t *buf, ip_addr_t *src, ip_addr_t *dest) {
-    int iphdr_size = ipv4_hdr_size(&(((ipv4_pkt_t *)pktbuf_data(buf))->hdr));
+    int iphdr_size = ipv4_hdr_size(&(((ipv4_pkt_t *) pktbuf_data(buf))->hdr));
 
     // 设置包的连续性，含IP包头和UDP包头
     net_err_t err = pktbuf_set_cont(buf, sizeof(udp_hdr_t) + iphdr_size);
@@ -131,20 +133,21 @@ net_err_t udp_in(pktbuf_t *buf, ip_addr_t *src, ip_addr_t *dest) {
     }
 
     // 定位到UDP包
-    ipv4_pkt_t * ip_pkt = (ipv4_pkt_t *)pktbuf_data(buf);
-    udp_pkt_t* udp_pkt = (udp_pkt_t*)((uint8_t *)ip_pkt + iphdr_size);
+    ipv4_pkt_t *ip_pkt = (ipv4_pkt_t *) pktbuf_data(buf);
+    udp_pkt_t *udp_pkt = (udp_pkt_t *) ((uint8_t * )
+    ip_pkt + iphdr_size);
     uint16_t local_port = x_ntohs(udp_pkt->hdr.dest_port);
     uint16_t remote_port = x_ntohs(udp_pkt->hdr.src_port);
 
     // 提交给合适的sock
-    udp_t * udp = (udp_t*)udp_find(src, remote_port, dest, local_port);
+    udp_t *udp = (udp_t *) udp_find(src, remote_port, dest, local_port);
     if (!udp) {
         return NET_ERR_UNREACH;
     }
 
     // 有UDP处理，移去IP包头，重新获得UDP包头
     pktbuf_remove_header(buf, iphdr_size);
-    udp_pkt = (udp_pkt_t*)pktbuf_data(buf);
+    udp_pkt = (udp_pkt_t *) pktbuf_data(buf);
     if (udp_pkt->hdr.check_sum) {
         pktbuf_reset_acc(buf);
         if (checksum_peso(dest->a_addr, src->a_addr, NET_PROTOCOL_UDP, buf)) {
@@ -153,18 +156,18 @@ net_err_t udp_in(pktbuf_t *buf, ip_addr_t *src, ip_addr_t *dest) {
     }
 
     // 检查包的合法性
-    udp_pkt = (udp_pkt_t*)(pktbuf_data(buf));
+    udp_pkt = (udp_pkt_t *) (pktbuf_data(buf));
     udp_pkt->hdr.src_port = x_ntohs(udp_pkt->hdr.src_port);
     udp_pkt->hdr.dest_port = x_ntohs(udp_pkt->hdr.dest_port);
     udp_pkt->hdr.total_len = x_ntohs(udp_pkt->hdr.total_len);
-    if ((err = udp_pkt_check(udp_pkt, buf->total_size)) <  0) {
+    if ((err = udp_pkt_check(udp_pkt, buf->total_size)) < 0) {
         return err;
     }
 //    display_udp_packet(udp_pkt);
 
     // 填充来源信息
-    pktbuf_remove_header(buf, (int)(sizeof(udp_hdr_t) - sizeof(udp_from_t)));
-    udp_from_t* from = (udp_from_t *)pktbuf_data(buf);
+    pktbuf_remove_header(buf, (int) (sizeof(udp_hdr_t) - sizeof(udp_from_t)));
+    udp_from_t *from = (udp_from_t *) pktbuf_data(buf);
     from->port = remote_port;
     ipaddr_copy(&from->from, src);
 
@@ -176,7 +179,7 @@ net_err_t udp_in(pktbuf_t *buf, ip_addr_t *src, ip_addr_t *dest) {
 //        if (dns_is_arrive(udp)) {
 //            dns_in();
 //        } else {
-            sock_wakeup((sock_t *)udp, SOCK_WAIT_READ, NET_ERR_OK);
+        sock_wakeup((sock_t *) udp, SOCK_WAIT_READ, NET_ERR_OK);
 //        }
     } else {
         pktbuf_free(buf);
@@ -187,17 +190,92 @@ net_err_t udp_in(pktbuf_t *buf, ip_addr_t *src, ip_addr_t *dest) {
 }
 
 net_err_t udp_out(ip_addr_t *dest, uint16_t dport, ip_addr_t *src, uint16_t sport, pktbuf_t *buf) {
+    if (!src || src->q_addr == 0) { // set src address if need
+        ip_route_entry_t *entry = route_find(dest);
+        if (!entry) {
+            return NET_ERR_UNREACH;
+        }
+        src = &entry->netif->ip_desc.ip_addr;
+    }
+    net_err_t  err = pktbuf_add_header(buf, sizeof (udp_hdr_t), 1);
+    if (err < 0) {
+        return NET_ERR_SIZE;
+    }
+    udp_hdr_t *hdr = (udp_hdr_t*) pktbuf_data(buf);
+    hdr->src_port = x_htons(sport);
+    hdr->dest_port = x_htons(dport);
+    hdr->total_len = x_htons(buf->total_size);
+    hdr->check_sum = checksum_peso(src->a_addr, dest->a_addr, NET_PROTOCOL_UDP, buf);
 
+    err = ipv4_out(NET_PROTOCOL_UDP, dest, src, buf);
+    if (err < 0) {
+        return err;
+    }
+    return NET_ERR_OK;
+}
+
+bool is_port_used(uint16_t port) {
+    nlist_node_t * node;
+    nlist_for_each(node, &udp_list) {
+        sock_t *sock = nlist_entry(node, sock_t, node);
+        if (sock->local_port == port) {
+            return true;
+        }
+    }
+    return false;
+}
+
+#define PORT_DYN_START 1024
+#define PORT_DYN_END 65535
+
+net_err_t alloc_port(sock_t *sock) {
+    for (int i = PORT_DYN_START; i < PORT_DYN_END; i++) {
+        if (!is_port_used(i)) {
+            sock->local_port = i;
+            return NET_ERR_OK;
+        }
+    }
+    return NET_ERR_NONE;
 }
 
 net_err_t
-udp_send_to(sock_t *sock, const void *buf, size_t len, int falgs, const sock_addr_t *dest, sock_len_t dest_len,
+udp_send_to(sock_t *sock, const void *buf, size_t len, int flags, const sock_addr_t *dest, sock_len_t dest_len,
             ssize_t *ret_len) {
-
+    sock_addr_in_t *addr_in = (sock_addr_in_t *) dest;
+    ip_addr_t dest_ip;
+    ip_addr_from_buf(&dest_ip, addr_in->in_addr.a_addr);
+    uint16_t dest_port = x_ntohs(addr_in->sin_port);
+    if (dest_ip.q_addr != 0 && (dest_ip.q_addr != sock->remote_ip.q_addr || dest_port != sock->remote_port)) {
+        return NET_ERR_CONNECTED;
+    }
+    if (sock->local_port != 0 && ((sock->err = alloc_port(sock))) < 0) {
+        return NET_ERR_NONE;
+    }
+    pktbuf_t * p_buf = pktbuf_alloc(len);
+    if (!buf) {
+        return NET_ERR_MEM;
+    }
+    net_err_t err = pktbuf_write(p_buf, (uint8_t * )
+    buf, (int) len);
+    if (err < 0) {
+        goto end_send_to;
+    }
+    err = udp_out(&dest_ip, dest_port, &sock->local_ip, sock->local_port, p_buf);
+    if (err < 0) {
+        goto end_send_to;
+    }
+    if (ret_len) {
+        *ret_len = len;
+    }
+    return NET_ERR_OK;
+    end_send_to:
+    pktbuf_free(p_buf);
+    return err;
 }
-net_err_t udp_receive_from(sock_t *sock, void *buf, size_t len, int flag, sock_addr_t *src, sock_len_t addr_len,
+
+net_err_t udp_receive_from(sock_t *sock, void *buf, size_t len, int flags, sock_addr_t *src, sock_len_t addr_len,
                            ssize_t *result_len) {
-    udp_t * udp = (udp_t *)sock;
+    udp_t *udp = (udp_t *) sock;
 
     // 取出一个数据包
     nlist_node_t * first = nlist_remove_first(&udp->recv_list);
@@ -207,11 +285,11 @@ net_err_t udp_receive_from(sock_t *sock, void *buf, size_t len, int flag, sock_a
         return NET_ERR_NEED_WAIT;
     }
 
-    pktbuf_t* pktbuf = nlist_entry(first, pktbuf_t, node);
+    pktbuf_t * pktbuf = nlist_entry(first, pktbuf_t, node);
 
     // 填充IP地址与端口号地址来源信息
-    udp_from_t* from = (udp_from_t *)pktbuf_data(pktbuf);
-    sock_addr_in_t *addr = (sock_addr_in_t*)src;
+    udp_from_t *from = (udp_from_t *) pktbuf_data(pktbuf);
+    sock_addr_in_t *addr = (sock_addr_in_t *) src;
     memset(addr, 0, sizeof(sock_addr_t));
     addr->sin_family = AF_INET;
     addr->sin_port = x_htons(from->port);     // 上层要大端
@@ -221,7 +299,7 @@ net_err_t udp_receive_from(sock_t *sock, void *buf, size_t len, int flag, sock_a
     pktbuf_remove_header(pktbuf, sizeof(udp_from_t));       // TODO: 这是原来写了两个？
 
     // 从底层收到的是IP数据包，包含包头，方便读取各种信息
-    int size = (pktbuf->total_size > (int)len) ? (int)len : pktbuf->total_size;
+    int size = (pktbuf->total_size > (int) len) ? (int) len : pktbuf->total_size;
     pktbuf_reset_acc(pktbuf);
     net_err_t err = pktbuf_read(pktbuf, buf, size);
     if (err < 0) {
@@ -234,19 +312,17 @@ net_err_t udp_receive_from(sock_t *sock, void *buf, size_t len, int flag, sock_a
     pktbuf_free(pktbuf);
 
     if (result_len) {
-        *result_len = (ssize_t)size;
+        *result_len = (ssize_t) size;
     }
     return NET_ERR_OK;
 }
 
 net_err_t udp_send(sock_t *sock, const void *buf, size_t len, int flags, ssize_t *result_len) {
-    return NET_ERR_OK;
+    return sock_send(sock, buf, len, flags, result_len);
 }
 
 net_err_t udp_receive(sock_t *sock, void *buf, size_t len, int flags, ssize_t *result_len) {
-    sock_addr_t src;
-    sock_len_t addr_len;
-    return sock->ops->receive_from(sock, buf, len, flags, &src, addr_len, result_len);
+    return sock_receive(sock, buf, len, flags, result_len);
 }
 
 sock_t *udp_create(int family, int protocol) {

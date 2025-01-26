@@ -41,6 +41,7 @@ enum syscall_no_ {
     SYSCALL_bind,
     SYSCALL_listen,
     SYSCALL_accept,
+    SYSCALL_connect,
     SYSCALL_send_to,
     SYSCALL_receive_from,
     SYSCALL_send,

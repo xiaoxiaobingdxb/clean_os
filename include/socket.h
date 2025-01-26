@@ -2,11 +2,12 @@
 // Created by ByteDance on 2025/1/22.
 //
 
-#include "common/types/basic.h"
-#include "fs_model.h"
-
 #ifndef SOCKET_H
 #define SOCKET_H
+
+#include "common/types/basic.h"
+#include "fs_model.h"
+#include "net_util.h"
 
 #undef AF_INET
 #define AF_INET                 0               // IPv4协议簇
@@ -47,7 +48,9 @@ typedef struct {
 typedef int sock_len_t;
 
 fd_t socket(int family, int type, int protocol);
-int bind(fd_t sock_fd, const sock_addr_t *addr, sock_len_t len);
+int bind(fd_t sock_fd, const sock_addr_t *addr, sock_len_t addr_len);
 int receive(fd_t sock_fd, void *buf, size_t len, int flags, ssize_t *result_len);
+int connect(fd_t sock_fd, const sock_addr_t *addr, sock_len_t addr_len);
+ssize_t send(fd_t sock_fd, const void *buf, size_t len, int flags);
 
 #endif //SOCKET_H

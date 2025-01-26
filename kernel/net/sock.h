@@ -133,6 +133,10 @@ void sock_uninit(sock_t *sock);
 net_err_t sock_wait_init(sock_wait_t *wait);
 
 net_err_t sock_bind(sock_t *sock, const sock_addr_t *addr, sock_len_t len);
+net_err_t sock_connect(sock_t *sock, const sock_addr_t *addr, sock_len_t len);
+
+net_err_t sock_send(sock_t *sock, const void *buf, size_t len, int flags, ssize_t *result_len);
+net_err_t sock_receive(sock_t *sock, void *buf, size_t len, int flags, ssize_t *result_len);
 
 net_err_t sock_wait_enter(sock_wait_t *wait, int tmo);
 void sock_wakeup(sock_t *sock, int type, int err);
@@ -140,6 +144,7 @@ void sock_wakeup(sock_t *sock, int type, int err);
 
 net_err_t handle_sock_create(func_msg_t *msg);
 net_err_t handle_sock_bind(func_msg_t *msg);
+net_err_t handle_sock_connect(func_msg_t *msg);
 net_err_t handle_sock_send(func_msg_t *msg);
 net_err_t handle_sock_receive(func_msg_t *msg);
 net_err_t handle_sock_set_opt(func_msg_t *msg);

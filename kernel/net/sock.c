@@ -7,6 +7,7 @@
 #include "netif.h"
 #include "common/lib/string.h"
 #include "udp.h"
+#include "util.h"
 
 typedef struct {
     enum {
@@ -81,6 +82,32 @@ net_err_t sock_bind(sock_t *sock, const sock_addr_t *addr, sock_len_t len) {
     ip_addr_from_buf(&sock->local_ip, in_addr->in_addr.a_addr);
     sock->local_port = in_addr->sin_port;
     return NET_ERR_OK;
+}
+
+net_err_t sock_connect(sock_t *sock, const sock_addr_t *addr, sock_len_t sock_len) {
+    sock_addr_in_t *in_addr = (sock_addr_in_t*)addr;
+    ip_addr_from_buf(&sock->remote_ip, in_addr->in_addr.a_addr);
+    sock->remote_port = in_addr->sin_port;
+    return NET_ERR_OK;
+}
+
+net_err_t sock_send(sock_t *sock, const void *buf, size_t len, int flags, ssize_t *result_len) {
+    if (sock->remote_ip.q_addr == 0) {
+        return NET_ERR_UNREACH;
+    }
+
+    sock_addr_in_t dest;
+    dest.sin_family = sock->family;
+    dest.sin_port = x_htons(sock->remote_port);
+    ip_addr_to_buf(&sock->remote_ip, (uint8_t*)&dest.in_addr);
+
+    // 从之前绑定的地址中取地址和端口号，转换地址后，然后发往该地址
+    return sock->ops->send_to(sock, buf, len, flags, (const sock_addr_t *)&dest, sizeof(dest), result_len);
+}
+net_err_t sock_receive(sock_t *sock, void *buf, size_t len, int flags, ssize_t *result_len) {
+    sock_addr_t src;
+    sock_len_t addr_len;
+    return sock->ops->receive_from(sock, buf, len, flags, &src, addr_len, result_len);
 }
 
 void sock_wait_leave(sock_wait_t *wait, net_err_t err) {
@@ -193,8 +220,36 @@ net_err_t handle_sock_bind(func_msg_t *msg) {
     return socket->sock->ops->bind(socket->sock, bind->addr, bind->len);
 }
 
+net_err_t handle_sock_connect(func_msg_t *msg) {
+    sock_req_t *req = (sock_req_t*)msg->param;
+    socket_t *socket = get_socket(req->sock_fd);
+    if (!socket) {
+        return NET_ERR_PARAM;
+    }
+    sock_t *sock = socket->sock;
+    sock_connect_t *conn = &req->connect;
+    net_err_t  err = sock->ops->connect(sock, conn->addr, conn->len);
+    if (err == NET_ERR_NEED_WAIT) {
+        sock_wait_add(sock->conn_wait, sock->recv_tmo, req);
+    }
+    return err;
+}
 net_err_t handle_sock_send(func_msg_t *msg) {
-
+    sock_req_t *req = (sock_req_t*)msg->param;
+    socket_t  *socket = get_socket(req->sock_fd);
+    if (!socket) {
+        return NET_ERR_PARAM;
+    }
+    sock_t *sock = socket->sock;
+    sock_data_t *data = (sock_data_t*)&req->data;
+    sock->err = NET_ERR_OK;
+    net_err_t  err = sock->ops->send(sock, data->buf, data->len, data->flags, &req->data.comp_len);
+    if (err == NET_ERR_NEED_WAIT) {
+        if (sock->send_wait) {
+            sock_wait_add(sock->send_wait, sock->send_tmo, req);
+        }
+    }
+    return err;
 }
 
 net_err_t handle_sock_receive(func_msg_t *msg) {

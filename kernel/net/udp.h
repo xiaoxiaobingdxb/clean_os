@@ -24,10 +24,10 @@ net_err_t udp_out(ip_addr_t *dest, uint16_t dport, ip_addr_t *src, uint16_t spor
 
 net_err_t udp_send(sock_t *sock, const void *buf, size_t len, int flags, ssize_t *result_len);
 
-net_err_t udp_receive(sock_t *sock, void *buf, size_t len, int falgs, ssize_t *result_len);
+net_err_t udp_receive(sock_t *sock, void *buf, size_t len, int flags, ssize_t *result_len);
 
 net_err_t
-udp_send_to(sock_t *sock, const void *buf, size_t len, int falgs, const sock_addr_t *dest, sock_len_t dest_len,
+udp_send_to(sock_t *sock, const void *buf, size_t len, int flags, const sock_addr_t *dest, sock_len_t dest_len,
             ssize_t *ret_len);
 
 net_err_t udp_receive_from(sock_t *sock, void *buf, size_t len, int flag, sock_addr_t *src, sock_len_t addr_len,

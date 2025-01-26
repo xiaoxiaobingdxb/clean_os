@@ -45,6 +45,7 @@ net_err_t exmsg_func_exec(exmsg_func_t func, void *param) {
     func_msg.func = func;
     func_msg.param = param;
     func_msg.err = NET_ERR_OK;
+    init_segment(&func_msg.wait_sem, 0);
 
     // 分配消息结构
     exmsg_t *msg = (exmsg_t *) mblock_alloc(&msg_block, 0);
@@ -58,7 +59,6 @@ net_err_t exmsg_func_exec(exmsg_func_t func, void *param) {
         return err;
     }
     // 等待执行完成
-    init_segment(&func_msg.wait_sem, 0);
     segment_wait(&func_msg.wait_sem, NULL);
 
     return func_msg.err;

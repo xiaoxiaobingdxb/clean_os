@@ -15,6 +15,7 @@ int close_socket(fd_t sock_fd);
 int socket_bind(fd_t sock_fd, const sock_addr_t *addr, sock_len_t len);
 int socket_listen(fd_t sock_fd, int backlog);
 int socket_accept(fd_t sock_fd, sock_addr_t *addr, sock_len_t *len);
+int socket_connect(fd_t sock_fd, sock_addr_t *addr, sock_len_t len);
 ssize_t socket_send_to(fd_t sock_fd, const void *buf, size_t len, int flags, const sock_addr_t *dest, sock_len_t dest_len);
 ssize_t socket_receive_from(fd_t sock_fd, void *buf, size_t len, int flags, sock_addr_t *src, sock_len_t *src_len);
 ssize_t socket_send(fd_t sock_fd, const void *buf, size_t len, int flags);

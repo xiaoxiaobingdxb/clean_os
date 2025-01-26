@@ -50,6 +50,32 @@ int socket_accept(fd_t sock_fd, sock_addr_t *addr, sock_len_t *len) {
     return 0;
 }
 
+int socket_connect(fd_t sock_fd, sock_addr_t *addr, sock_len_t addr_len) {
+    if (addr_len != sizeof(sock_addr_t) || !addr) {
+        return -1;
+    }
+    if (addr->sa_family != AF_INET) {
+        return -1;
+    }
+    sock_addr_in_t *addr_in = (sock_addr_in_t *) addr;
+    if (addr_in->in_addr.q_addr == 0 || addr_in->sin_port == 0) {
+        return -1;
+    }
+    sock_req_t req;
+    req.wait = 0;
+    req.sock_fd = sock_fd;
+    req.connect.addr = addr;
+    req.connect.len = addr_len;
+    net_err_t err = exmsg_func_exec(handle_sock_connect, &req);
+    if (err < 0) {
+        return -1;
+    }
+    if (req.wait && ((err = sock_wait_enter(req.wait, req.wait_tmo)) < NET_ERR_OK)) {
+        return -1;
+    }
+    return 0;
+}
+
 ssize_t
 socket_send_to(fd_t sock_fd, const void *buf, size_t len, int flags, const sock_addr_t *dest, sock_len_t dest_len) {
     if (len == 0 || dest_len != sizeof(sock_addr_t)) {
@@ -59,7 +85,7 @@ socket_send_to(fd_t sock_fd, const void *buf, size_t len, int flags, const sock_
         return -1;
     }
     ssize_t send_size = 0;
-    uint8_t * start = (uint8_t * )
+    uint8_t *start = (uint8_t * )
     buf;
     while (len) {
         sock_req_t req;
@@ -68,7 +94,7 @@ socket_send_to(fd_t sock_fd, const void *buf, size_t len, int flags, const sock_
         req.data.buf = start;
         req.data.len = len;
         req.data.flags = flags;
-        req.data.addr = (sock_addr_t*)dest;
+        req.data.addr = (sock_addr_t *) dest;
         req.data.addr_len = &dest_len;
         req.data.comp_len = 0;
         net_err_t err = exmsg_func_exec(handle_sock_send, &req);
@@ -119,7 +145,7 @@ ssize_t socket_receive_from(fd_t sock_fd, void *buf, size_t len, int flags, sock
 
 ssize_t socket_send(fd_t sock_fd, const void *buf, size_t len, int flags) {
     ssize_t send_size = 0;
-    uint8_t * start = (uint8_t * )
+    uint8_t *start = (uint8_t * )
     buf;
     while (len) {
         sock_req_t req;
@@ -183,7 +209,7 @@ int set_sock_opt(fd_t sock_fd, int level, int opt_name, const char *opt_value, i
     req.opt.opt_name = opt_len;
     req.opt.opt_value = opt_value;
     req.opt.opt_len = opt_len;
-    net_err_t  err = exmsg_func_exec(handle_sock_set_opt, &req);
+    net_err_t err = exmsg_func_exec(handle_sock_set_opt, &req);
     if (err < 0) {
         return err;
     }
