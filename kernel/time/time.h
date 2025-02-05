@@ -1,6 +1,6 @@
 #include "include/syscall.h"
 
-#define HZ 1000
+#define HZ 100
 
 void sys_timestamp(timespec_t *timestamp);
 

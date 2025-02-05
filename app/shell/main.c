@@ -6,6 +6,7 @@
 #include "glibc/io/std.h"
 #include "include/device_model.h"
 #include "include/syscall.h"
+#include "func/func.h"
 
 fd_t stdio_fd;
 
@@ -126,6 +127,8 @@ declare_cmd_func(date);
 
 declare_cmd_func(exec);
 
+declare_cmd_func(ping);
+
 cmd_t cmd_list[] = {
         {
                 .name = "man",
@@ -190,6 +193,11 @@ cmd_t cmd_list[] = {
                 .usage = "execute a program",
                 .func = do_exec,
         },
+        {
+            .name = "ping",
+            .usage = "send ICMP ECHO_REQUEST packets to network hosts",
+            .func = do_ping,
+        }
 };
 
 cmd_t *find_cmd(char *cmd_str) {
@@ -492,4 +500,18 @@ declare_cmd_func(exec) {
         free(path);
     }
     return err;
+}
+
+declare_cmd_func(ping) {
+    if (argc < 2) {
+        printf("require target ip\n");
+        return -1;
+    }
+    char *ip_str = argv[1];
+    int times = 10;
+    if (argc >= 3) {
+        str2num(argv[2], &times);
+    }
+    ping(ip_str, times);
+    return 0;
 }

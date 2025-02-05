@@ -31,6 +31,7 @@ typedef struct {
     uint32_t priority;
     uint32_t ticks;          // time running at cpu
     uint32_t elapset_ticks;  // time running at cpu all life
+    uint32_t sleep_ticks;
     completion *vfork_done;
 
     uint32_t page_dir;
@@ -42,6 +43,7 @@ typedef struct {
 } task_struct;
 
 extern list ready_tasks;
+extern list sleep_tasks;
 extern list all_tasks;
 
 task_struct *cur_thread();
@@ -70,6 +72,7 @@ uint32_t malloc_thread_mem_vaddr(uint32_t vaddr, int page_count);
 int unmalloc_thread_mem(uint32_t vaddr, int page_count);
 
 void thread_yield();
+void thread_sleep(uint32_t ms_n);
 void thread_clone(const char *name, uint32_t priority, thread_func func,
                   void *func_arg);
 

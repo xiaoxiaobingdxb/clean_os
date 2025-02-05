@@ -4,6 +4,7 @@
 #include "mblock.h"
 #include "common/types/basic.h"
 
+#define ARP_CACHE_MAX 50
 typedef struct {
     uint8_t paddr[IPV4_ADDR_SIZE];
     uint8_t haddr[ETH_HWA_SIZE];
@@ -217,8 +218,9 @@ net_err_t arp_in(netif_t *netif, pktbuf_t *buf) {
         log_debug("received an arp, force update\n");
         cache_insert(netif, arp_packet->send_paddr, arp_packet->send_haddr, 1);
         if (x_htons(arp_packet->opcode) == ARP_REQUEST) {
-            return arp_make_reply(netif, buf);
+            err = arp_make_reply(netif, buf);
         }
+        return err;
     } else {
         cache_insert(netif, arp_packet->send_paddr, arp_packet->send_haddr, 0);
     }
@@ -254,4 +256,26 @@ uint8_t* arp_find(ip_addr_t *ip) {
         return NULL;
     }
     return entry->haddr;
+}
+
+net_err_t arp_resolve(netif_t *netif, ip_addr_t *addr, pktbuf_t *buf) {
+    arp_entry_t *entry = cache_find(addr->a_addr);
+    if (entry) {
+        if (entry->state == NET_ARP_RESOLVED) {
+            return ether_raw_out(netif, NET_PROTOCOL_IPv4, entry->haddr, buf);
+        } else if (nlist_count(&entry->buf_list) > ARP_CACHE_MAX) {
+            return NET_ERR_FULL;
+        } else {
+            nlist_insert_first(&entry->buf_list, &buf->node);
+            return NET_ERR_OK;
+        }
+    }
+    entry = cache_alloc(1);
+    if (!entry) {
+        return NET_ERR_MEM;
+    }
+    cache_entry_set(entry, NULL, addr->a_addr, netif, NET_ARP_WAITING);
+    nlist_insert_first(&entry->buf_list, &buf->node);
+    nlist_insert_last(&cache_list, &entry->node);
+    return arp_make_request(netif, addr);
 }

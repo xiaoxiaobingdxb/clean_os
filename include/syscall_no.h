@@ -18,6 +18,7 @@ enum syscall_no_ {
     SYSCALL_clone,
     SYSCALL_sysinfo,
     SYSCALL_ps,
+    SYSCALL_sleep,
 
     // fs
     SYSCALL_open,

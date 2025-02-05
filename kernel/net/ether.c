@@ -83,10 +83,10 @@ net_err_t arp_make_request(netif_t *netif, ip_addr_t *pro_addr) {
     ip_addr_to_buf(&netif->ip_desc.ip_addr, arp_packet->send_paddr);
     memcpy(arp_packet->target_haddr, empty_hwaddr, 6);
     ip_addr_to_buf(pro_addr, arp_packet->target_paddr);
-
+    uint8_t real_mac[] = {0x16, 0x0d, 0x6a, 0x2b, 0xec, 0x76};
     // 发广播通知所有主机
     net_err_t err =
-            ether_raw_out(netif, NET_PROTOCOL_ARP, ether_broadcast_addr(), buf);
+            ether_raw_out(netif, NET_PROTOCOL_ARP, /*ether_broadcast_addr()*/real_mac, buf);
     if (err < 0) {
         pktbuf_free(buf);
     }
@@ -170,9 +170,9 @@ static net_err_t ether_out(netif_t *netif, ip_addr_t *ip_addr, pktbuf_t *buf) {
     if (netif->ip_desc.ip_addr.q_addr == ip_addr->q_addr) {
         ether_raw_out(netif, NET_PROTOCOL_IPv4, netif->mac, buf);
     } else {
-        uint8_t* h_addr = arp_find(ip_addr);
+        uint8_t * h_addr = arp_find(ip_addr);
         if (!h_addr) { // not found by arp
-            return NET_ERR_NONE;
+            return arp_resolve(netif, ip_addr, buf);
         } else {
             return ether_raw_out(netif, NET_PROTOCOL_IPv4, h_addr, buf);
         }

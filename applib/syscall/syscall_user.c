@@ -41,6 +41,10 @@ int sysinfo(uint32_t pid, sys_info *info, int flags) {
 
 int ps(ps_info *ps, size_t count) { return syscall2(SYSCALL_ps, ps, count); }
 
+void sleep(uint32_t ms_n) {
+    syscall1(SYSCALL_sleep, ms_n);
+}
+
 fd_t dup(fd_t fd) { return syscall1(SYSCALL_dup, fd); }
 fd_t dup2(fd_t dst, fd_t source) { return syscall2(SYSCALL_dup2, dst, source); }
 

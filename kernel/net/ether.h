@@ -31,6 +31,7 @@ typedef struct _ether_pkt_t {
 
 net_err_t init_ether();
 net_err_t ether_raw_out(netif_t *netif, uint16_t protocol, const uint8_t *dest, pktbuf_t *buf);
+net_err_t arp_make_request(netif_t *netif, ip_addr_t *pro_addr);
 
 
 #endif // NET_ETHER_H

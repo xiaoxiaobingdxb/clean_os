@@ -35,6 +35,7 @@ int index(list *l, list_node *node);
 typedef bool(foreach_visitor)(list_node *node, void *arg);
 
 void foreach (list *l, foreach_visitor visitor, void *arg);
+#define list_foreach(node, list) for (node = (list)->head.next; node && node != &((list)->tail); node = node->next)
 
 list_node* list_find(list *l, foreach_visitor visitor, void *arg);
 

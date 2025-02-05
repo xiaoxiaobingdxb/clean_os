@@ -44,6 +44,7 @@ void deprecated_clone(const char *name, uint32_t priority, void *func,
 #define SYS_INFO_CPU_INFO (1 << 1)
 int sysinfo(uint32_t pid, sys_info *info, int flags);
 int ps(ps_info *ps, size_t count);
+void sleep(uint32_t ms_n);
 
 #define FILENO_UNKNOWN -1
 #define STDIN_FILENO 0

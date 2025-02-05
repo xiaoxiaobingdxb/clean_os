@@ -44,6 +44,7 @@ void init_syscall() {
     syscall_register(SYSCALL_clone, process_clone);
     syscall_register(SYSCALL_sysinfo, process_sysinfo);
     syscall_register(SYSCALL_ps, process_ps);
+    syscall_register(SYSCALL_sleep, thread_sleep);
 
     syscall_register(SYSCALL_open, sys_open);
     syscall_register(SYSCALL_dup, sys_dup);

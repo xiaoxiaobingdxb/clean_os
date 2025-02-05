@@ -10,8 +10,9 @@
 #include "../time/timer.h"
 #include "../fs/fs.h"
 #include "common/tool/log.h"
-
+#include "../time/time.h"
 list ready_tasks;
+list sleep_tasks;
 list all_tasks;
 
 static void kernel_thread(thread_func *func, void *func_arg) {
@@ -111,8 +112,8 @@ task_struct *thread_start1(const char *name, thread_func func, void *func_arg) {
     init_thread(thread, name, 31);
     thread_create(thread, func, func_arg);
     __asm__ __volatile__(
-        "mov %[v], %%esp; pop %%ebp; pop %%ebx; pop %%edi; pop %%esi; ret" ::
-            [v] "r"(thread->self_kstack));
+            "mov %[v], %%esp; pop %%ebp; pop %%ebx; pop %%edi; pop %%esi; ret" ::
+    [v] "r"(thread->self_kstack));
     return thread;
 }
 
@@ -123,6 +124,24 @@ void process_activate(task_struct *thread) {
 }
 
 void schedule() {
+    list_node *sleep_node;
+    list_node* wake_up_list[10];
+    int wake_up_count = 0;
+    list_foreach(sleep_node, &sleep_tasks) {
+        task_struct *sleep_task = tag2entry(task_struct, general_tag, sleep_node);
+        sleep_task->sleep_ticks--;
+        log_debug("%d sleep_ticks %d\n", sleep_task->pid, sleep_task->sleep_ticks);
+        if (sleep_task->sleep_ticks <= 0) {
+            wake_up_list[wake_up_count++] = sleep_node;
+        }
+    }
+    for (int i = 0; i < wake_up_count; i++) {
+        list_node *node = wake_up_list[i];
+        remove(&sleep_tasks, node);
+        pushl(&ready_tasks, node);
+        task_struct *task = tag2entry(task_struct, general_tag, node);
+        task->status = TASK_READY;
+    }
     task_struct *cur = cur_thread();
     if (cur->status == TASK_RUNNING && cur->ticks > 0) {
         cur->elapset_ticks++;
@@ -155,11 +174,16 @@ void schedule() {
     switch_to(cur, next);
 }
 
+#include "common/cpu/hz.h"
 void init_task() {
     init_schedule_timer();
     init_list(&ready_tasks);
     init_list(&all_tasks);
+    init_list(&sleep_tasks);
     init_pid_alloc();
+    cpu_hz_t hz;
+    get_hz(&hz);
+    log_debug("cpu_hz:%d,%d,%d\n", hz.base_hz, hz.max_hz, hz.bus_hz);
 }
 
 extern pde_t kernel_page_dir[PDE_CNT] __attribute__((aligned(MEM_PAGE_SIZE)));
@@ -240,6 +264,9 @@ void _set_thread_status(task_struct *task, task_status status,
     if (status != TASK_READY) {
         remove(&ready_tasks, &task->general_tag);
     }
+    if (status == TASK_SLEEP) {
+        pushr(&sleep_tasks, &task->general_tag);
+    }
     task->status = status;
     if (need_schedule) {
         schedule();
@@ -260,6 +287,14 @@ void set_cur_thread_status(task_status status, bool need_schedule) {
 }
 
 void thread_yield() { set_cur_thread_status(TASK_READY, true); }
+
+void thread_sleep(uint32_t ms_n) {
+    eflags_t state = enter_intr_protect();
+    task_struct *cur = cur_thread();
+    cur->sleep_ticks = HZ * ms_n / 1000;
+    set_cur_thread_status(TASK_SLEEP, true);
+    leave_intr_protect(state);
+}
 
 void thread_clone(const char *name, uint32_t priority, thread_func func,
                   void *func_arg) {
@@ -288,7 +323,7 @@ bool pid_find_in_all_tasks(list_node *node, void *arg) {
 bool has_other_thread(task_struct *task) {
     task_struct *args[2] = {task, NULL};
     foreach (&all_tasks, pid_find_in_all_tasks, (void *)args)
-        ;
+            ;
     return args[1] != NULL;
 }
 
@@ -305,7 +340,7 @@ bool pid2task_visitor(list_node *node, void *arg) {
 task_struct *pid2task(pid_t pid) {
     uint32_t arg[2] = {pid, 0};
     foreach (&all_tasks, pid2task_visitor, (void *)arg)
-        ;
+            ;
     return (task_struct *)arg[1];
 }
 
@@ -323,7 +358,7 @@ bool thread_child_visitor(list_node *node, void *arg) {
 task_struct *thread_child(task_struct *parent, task_status status) {
     uint32_t args[3] = {parent->pid, (uint32_t)status, 0};
     foreach (&all_tasks, thread_child_visitor, (void *)args)
-        ;
+            ;
     return (task_struct *)args[2];
 }
 

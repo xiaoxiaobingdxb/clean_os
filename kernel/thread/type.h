@@ -9,6 +9,7 @@ typedef enum {
     TASK_RUNNING,
     TASK_READY,
     TASK_BLOCKED,
+    TASK_SLEEP,
     TASK_WAITING,
     TASK_HANGING,
     TASK_DIED

@@ -23,7 +23,7 @@ net_err_t init_netdev() {
     if (!netif) {
         return NET_ERR_IO;
     }
-static const char netdev0_ip[] = "10.3.208.99";
+static const char netdev0_ip[] = "10.3.208.100";
 static const char netdev0_gw[] = "10.3.208.1";
 //    static const char netdev0_ip[] = "192.168.1.99";
 //    static const char netdev0_gw[] = "192.168.1.1";

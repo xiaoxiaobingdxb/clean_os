@@ -25,4 +25,5 @@ void init_arp();
 net_err_t arp_in(netif_t *netif, pktbuf_t *buf);
 net_err_t arp_update_from_ipbuf(netif_t *netif, pktbuf_t *buf);
 uint8_t* arp_find(ip_addr_t *ip);
+net_err_t arp_resolve(netif_t *netif, ip_addr_t *addr, pktbuf_t *buf);
 #endif // NET_ARP_H
