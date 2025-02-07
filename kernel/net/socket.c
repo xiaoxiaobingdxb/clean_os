@@ -20,6 +20,13 @@ fd_t create_socket(int family, int type, int protocol) {
 }
 
 int close_socket(fd_t sock_fd) {
+    sock_req_t req;
+    req.wait = 0;
+    req.sock_fd = sock_fd;
+    net_err_t err = exmsg_func_exec(handle_sock_close, &req);
+    if (err < 0) {
+        return -1;
+    }
     return 0;
 }
 
@@ -58,7 +65,7 @@ int socket_connect(fd_t sock_fd, sock_addr_t *addr, sock_len_t addr_len) {
         return -1;
     }
     sock_addr_in_t *addr_in = (sock_addr_in_t *) addr;
-    if (addr_in->in_addr.q_addr == 0 || addr_in->sin_port == 0) {
+    if (addr_in->in_addr.q_addr == 0) {
         return -1;
     }
     sock_req_t req;

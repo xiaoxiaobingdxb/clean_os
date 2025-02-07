@@ -75,10 +75,6 @@ off_t lseek(fd_t fd, off_t offset, int whence);
 void close(fd_t fd);
 
 typedef struct {
-    time64_t tv_sec;
-    time64_t tv_nsec;
-} timespec_t;
-typedef struct {
     dev_id_t dev_id;
     size_t size;
     size_t block_size;

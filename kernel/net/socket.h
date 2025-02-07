@@ -8,9 +8,8 @@
 #include "sock.h"
 #include "include/socket.h"
 
-
-
 fd_t create_socket(int family, int type, int protocol);
+socket_t *get_socket(fd_t fd);
 int close_socket(fd_t sock_fd);
 int socket_bind(fd_t sock_fd, const sock_addr_t *addr, sock_len_t len);
 int socket_listen(fd_t sock_fd, int backlog);

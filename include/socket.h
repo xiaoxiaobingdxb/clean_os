@@ -52,5 +52,4 @@ int bind(fd_t sock_fd, const sock_addr_t *addr, sock_len_t addr_len);
 int receive(fd_t sock_fd, void *buf, size_t len, int flags, ssize_t *result_len);
 int connect(fd_t sock_fd, const sock_addr_t *addr, sock_len_t addr_len);
 ssize_t send(fd_t sock_fd, const void *buf, size_t len, int flags);
-
 #endif //SOCKET_H

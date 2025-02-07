@@ -7,6 +7,7 @@
 #include "include/device_model.h"
 #include "include/syscall.h"
 #include "func/func.h"
+#include "common/tool/flag.h"
 
 fd_t stdio_fd;
 
@@ -194,9 +195,9 @@ cmd_t cmd_list[] = {
                 .func = do_exec,
         },
         {
-            .name = "ping",
-            .usage = "send ICMP ECHO_REQUEST packets to network hosts",
-            .func = do_ping,
+                .name = "ping",
+                .usage = "send ICMP ECHO_REQUEST packets to network hosts",
+                .func = do_ping,
         }
 };
 
@@ -507,11 +508,22 @@ declare_cmd_func(ping) {
         printf("require target ip\n");
         return -1;
     }
-    char *ip_str = argv[1];
-    int times = 10;
-    if (argc >= 3) {
-        str2num(argv[2], &times);
+#define FLAG_PARAM_COUNT 32  // max 32 params
+    char *params[FLAG_PARAM_COUNT * 2];
+    size_t flag_count = parse_flag(argc, argv, params);
+    size_t  size = 64;
+    size_t count = 10;
+    for (int i = 0; i < flag_count; i++) {
+        char *name = params[i*2+0];
+        char *value = params[i*2+1];
+        if (memcmp(name, "size", 4) == 0) {
+            str2num(value, &size);
+        }
+        if (memcmp(name, "count", 4) == 0) {
+            str2num(value, &count);
+        }
     }
-    ping(ip_str, times);
+    char *ip_str = argv[1];
+    ping(ip_str, count, size);
     return 0;
 }

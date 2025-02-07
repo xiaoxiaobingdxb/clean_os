@@ -164,7 +164,12 @@ off_t sys_lseek(fd_t fd, off_t offset, int whence) {
     return file->desc->ops->seek(file, offset, whence);
 }
 
+#include "../net/socket.h"
 error sys_close(fd_t fd) {
+    socket_t* socket = get_socket(fd);
+    if (socket) {
+        return close_socket(fd);
+    }
     file_t *file = task_file(fd);
     if (!file) {
         return EBADF;

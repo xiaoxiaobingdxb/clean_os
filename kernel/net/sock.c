@@ -8,14 +8,8 @@
 #include "common/lib/string.h"
 #include "udp.h"
 #include "util.h"
+#include "raw.h"
 
-typedef struct {
-    enum {
-        SOCKET_STATE_FREE,
-        SOCKET_STATE_USED
-    } state;
-    sock_t *sock;
-} socket_t;
 #define SOCKET_MAX_NR        100
 static socket_t socket_tbl[SOCKET_MAX_NR];
 
@@ -110,6 +104,10 @@ net_err_t sock_receive(sock_t *sock, void *buf, size_t len, int flags, ssize_t *
     return sock->ops->receive_from(sock, buf, len, flags, &src, addr_len, result_len);
 }
 
+net_err_t sock_set_opt(sock_t *sock, int level, int opt_name, const char *opt_val, int option) {
+    return NET_ERR_OK;
+}
+
 void sock_wait_leave(sock_wait_t *wait, net_err_t err) {
     if (wait->waiting > 0) {
         wait->waiting--;
@@ -169,7 +167,7 @@ net_err_t handle_sock_create(func_msg_t *msg) {
         int protocol;			// 缺省的协议
         sock_t* (*create) (int family, int protocol);
     }  sock_tbl[] = {
-//            [SOCK_RAW] = { .protocol = 0, .create = raw_create,},
+            [SOCK_RAW] = { .protocol = 0, .create = raw_create,},
             [SOCK_DGRAM] = { .protocol = IPPROTO_UDP, .create = udp_create,},
 //            [SOCK_STREAM] = {.protocol = IPPROTO_TCP,  .create = tcp_create,},
     };
@@ -205,6 +203,18 @@ net_err_t handle_sock_create(func_msg_t *msg) {
     socket->sock = sock;
     req->sock_fd = socket_index(socket);
     return NET_ERR_OK;
+}
+
+net_err_t handle_sock_close(func_msg_t *msg) {
+    sock_req_t *req = (sock_req_t *) msg->param;
+    socket_t *socket = get_socket(req->sock_fd);
+    if (!socket) {
+        return NET_ERR_PARAM;
+    }
+    if (!socket->sock) {
+        return NET_ERR_PARAM;
+    }
+    return socket->sock->ops->close(socket->sock);
 }
 
 net_err_t handle_sock_bind(func_msg_t *msg) {

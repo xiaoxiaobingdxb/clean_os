@@ -8,7 +8,7 @@
 typedef struct {
     uint8_t type;
     uint8_t code;
-    uint8_t checksum;
+    uint16_t checksum;
 } icmp_hdr_t;
 typedef struct {
     icmp_hdr_t hdr;

@@ -130,7 +130,6 @@ void schedule() {
     list_foreach(sleep_node, &sleep_tasks) {
         task_struct *sleep_task = tag2entry(task_struct, general_tag, sleep_node);
         sleep_task->sleep_ticks--;
-        log_debug("%d sleep_ticks %d\n", sleep_task->pid, sleep_task->sleep_ticks);
         if (sleep_task->sleep_ticks <= 0) {
             wake_up_list[wake_up_count++] = sleep_node;
         }

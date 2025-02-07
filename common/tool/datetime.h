@@ -21,6 +21,11 @@
 typedef sint64_t time64_t;
 
 typedef struct {
+    time64_t tv_sec;
+    time64_t tv_nsec;
+} timespec_t;
+
+typedef struct {
     int year;
     int month;
     int day;
@@ -89,5 +94,11 @@ static inline void mkdatetime(time64_t time, datetime_t *datetime) {
         time -= days[datetime->month];
     }
     datetime->day = time;
+}
+
+static inline uint64_t timespec2ms(timespec_t *timespec) {
+    uint64_t ret = timespec->tv_sec * 1000;
+    ret += div_u64_rem(timespec->tv_nsec, 1000000, NULL);
+    return ret;
 }
 #endif // TOOL_DATETIME_H

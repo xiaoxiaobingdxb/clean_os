@@ -7,6 +7,7 @@
 #include "arp.h"
 #include "sock.h"
 #include "udp.h"
+#include "raw.h"
 
 net_err_t netif_set_addr(netif_t *netif, ip_addr_t *ip, ip_addr_t *netmask, ip_addr_t *gateway) {
     ipaddr_copy(&netif->ip_desc.ip_addr, ip ? ip : ipaddr_get_any());
@@ -56,6 +57,7 @@ net_err_t init_net() {
     init_ip();
     init_socket();
     init_udp();
+    init_raw();
     init_netdev();
 
     net_start();
