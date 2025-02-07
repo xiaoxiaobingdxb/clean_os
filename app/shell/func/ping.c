@@ -80,7 +80,6 @@ static uint16_t checksum16(uint32_t offset, void *buf, uint16_t len, uint32_t pr
 }
 
 void ping(const char *ip, size_t count, size_t size) {
-    for (int i = 0; i < count; i++) {
         fd_t sock_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
         if (sock_fd < 0) {
             printf("create_socket fail %d\n", sock_fd);
@@ -96,16 +95,19 @@ void ping(const char *ip, size_t count, size_t size) {
             return;
         }
         printf("PING %s(%s): %d data bytes\n", ip, ip, size);
-        ping_req_t req;
-        req.icmp_hdr.type = 8;
-        req.icmp_hdr.code = 0;
+
+    ping_req_t req;
+    req.icmp_hdr.type = 8;
+    req.icmp_hdr.code = 0;
+    req.icmp_hdr.checksum = 0;
+
+    ping_resp_t resp;
+    ssize_t receive_size;
+
+    timespec_t start_time, end_time;
+    req.icmp_hdr.echo_id = 0;
+    for (int i = 0; i < count; i++) {
         req.icmp_hdr.checksum = 0;
-
-        ping_resp_t resp;
-        ssize_t receive_size;
-
-        timespec_t start_time, end_time;
-        req.icmp_hdr.echo_id = 0;
 
         req.icmp_hdr.echo_seq = i;
         req.icmp_hdr.checksum = checksum16(0, &req, sizeof(icmp_hdr_t) + size, 0, 1);
@@ -117,19 +119,33 @@ void ping(const char *ip, size_t count, size_t size) {
         }
 
         int ret = receive(sock_fd, &resp, sizeof(resp), 0, &receive_size);
+        if (resp.icmp_hdr.echo_id != req.icmp_hdr.echo_id) {
+            printf("id err, req_id=%d, resp_id=%d\n", req.icmp_hdr.echo_id, resp.icmp_hdr.echo_id);
+            continue;
+        }
+        if (resp.icmp_hdr.echo_seq != req.icmp_hdr.echo_seq) {
+            printf("seq err, req_seq=%d, resp_seq=%d\n", req.icmp_hdr.echo_seq, resp.icmp_hdr.echo_seq);
+            continue;
+        }
+        /*
+        uint16_t resp_checksum = checksum16(0, &resp, (uint64_t)ret, 0, 1);
+        if (resp.icmp_hdr.checksum != resp_checksum) {
+            printf("checksum err\n");
+            continue;
+        }
+         */
         timestamp(&end_time);
         uint64_t start_ms = timespec2ms(&start_time);
         uint64_t end_ms = timespec2ms(&end_time);
-        printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%d ms\n", ret, ip, resp.icmp_hdr.echo_seq, 64,
+        printf("%d bytes from %s: icmp_seq=%d ttl=%d time=%d ms\n", ret, ip, resp.icmp_hdr.echo_seq, resp.ip_hdr.ttl,
                (uint32_t)(end_ms - start_ms));
-//        printf("ret=%d,receive_size=%d\n", ret, receive_size);
         /*timespec_t time;
         timestamp(&time);
         datetime_t datetime;
         mkdatetime(time.tv_sec, &datetime);
         printf("%d sleep_test at %d:%d\n", i, datetime.minute, datetime.second);
          */
-        close(sock_fd);
         sleep(1000 * 1);
     }
+    close(sock_fd);
 }

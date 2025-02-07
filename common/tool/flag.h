@@ -14,6 +14,7 @@ static size_t parse_flag(int argc, char *argv[], char **result) {
             result[flag_count*2+1] = argv[i+1];
             i += 2;
             flag_count++;
+            continue;
         }
         i++;
     }
